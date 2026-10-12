@@ -48,3 +48,33 @@ export function subscribeToLobbies(onChange: () => void) {
         supabase.removeChannel(channel);
     };
 }
+
+export async function fetchMyLobbies(): Promise<Lobby[]> {
+    const userId = await getCurrentUserId();
+    if (!userId) return [];
+
+    const { data, error } = await supabase
+        .from('squad_lobbies')
+        .select('*')
+        .eq('host_id', userId)
+        .in('status', ['open', 'full'])
+        .order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data as Lobby[];
+}
+
+export async function deleteLobby(id: string): Promise<string | null> {
+    const userId = await getCurrentUserId();
+    if (!userId) return 'Sila log masuk semula.';
+
+    const { data, error } = await supabase
+        .from('squad_lobbies')
+        .delete()
+        .eq('id', id)
+        .eq('host_id', userId)
+        .select('id');
+
+    if (error) return error.message;
+    if (!data || data.length === 0) return 'Tak dapat padam. Hanya host boleh padam squad ini.';
+    return null;
+}

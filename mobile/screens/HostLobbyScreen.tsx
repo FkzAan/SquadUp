@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
 import { fetchFacilities } from '../services/facilityService';
 import { createLobby as createLobbyApi } from '../services/lobbyService';
 import type { Facility, SkillLevel } from '../types';
@@ -13,7 +14,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
     const [locationName, setLocationName] = useState('');
     const [facility, setFacility] = useState<Facility | null>(null);
     const [maxPlayers, setMaxPlayers] = useState(4);
-    const [skill, setSkill] = useState(SKILLS[0]);
+    const [skill, setSkill] = useState<SkillLevel>(SKILLS[0]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -50,7 +51,12 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
 
     return (
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
-            <Text style={s.title}>Host a Squad</Text>
+            <View style={s.topRow}>
+                <TouchableOpacity style={s.backBtn} onPress={onDone} activeOpacity={0.7}>
+                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                </TouchableOpacity>
+                <Text style={s.title}>Host a Squad</Text>
+            </View>
 
             <Text style={s.label}>Aktiviti</Text>
             <TextInput
@@ -118,7 +124,9 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
 
 const s = StyleSheet.create({
     container: { padding: 20, paddingTop: 60 },
-    title: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
+    topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+    backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
+    title: { fontSize: 26, fontWeight: '800' },
     label: { fontWeight: '600', marginTop: 16, marginBottom: 8, color: '#374151' },
     hint: { color: '#6b7280', fontSize: 12, marginBottom: 6 },
     input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12 },

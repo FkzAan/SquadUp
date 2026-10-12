@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, BackHandler, View } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { getSession, onAuthChange } from './services/authService';
 import LoginScreen from './screens/LoginScreen';
@@ -18,6 +18,18 @@ export default function App() {
     });
     return onAuthChange(setSession);
   }, []);
+
+  // Butang back Android: dari skrin Host, kembali ke Feed (bukan keluar app)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (hosting) {
+        setHosting(false);
+        return true; // kita uruskan, jangan keluar app
+      }
+      return false; // di Feed/Login: biar app keluar seperti biasa
+    });
+    return () => sub.remove();
+  }, [hosting]);
 
   if (!ready) {
     return (

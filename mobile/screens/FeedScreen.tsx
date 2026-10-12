@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLobbies } from '../hooks/useLobbies';
 import { joinLobby } from '../services/lobbyService';
-import { signOut } from '../services/authService';
+import Sidebar from '../components/Sidebar';
 
 export default function FeedScreen({ onHost }: { onHost: () => void }) {
     const { lobbies, loading, refresh } = useLobbies();
+    const [menuOpen, setMenuOpen] = useState(false);
 
     async function onJoin(id: string) {
         const err = await joinLobby(id);
@@ -13,21 +15,13 @@ export default function FeedScreen({ onHost }: { onHost: () => void }) {
         else Alert.alert('Berjaya!', 'Kamu dah masuk squad. Chat dibuka bila squad penuh.');
     }
 
-    function confirmLogout() {
-        Alert.alert('Log keluar', 'Anda pasti mahu log keluar?', [
-            { text: 'Batal', style: 'cancel' },
-            { text: 'Log keluar', style: 'destructive', onPress: () => signOut() },
-        ]);
-    }
-
     return (
         <View style={s.container}>
             <View style={s.header}>
-                <Text style={s.title}>Squad Berdekatan</Text>
-                <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.7}>
-                    <Ionicons name="log-out-outline" size={18} color="#dc2626" />
-                    <Text style={s.logoutText}>Log keluar</Text>
+                <TouchableOpacity style={s.menuBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
+                    <Ionicons name="menu" size={26} color="#111827" />
                 </TouchableOpacity>
+                <Text style={s.title}>Squad Berdekatan</Text>
             </View>
 
             <FlatList
@@ -54,26 +48,17 @@ export default function FeedScreen({ onHost }: { onHost: () => void }) {
             <TouchableOpacity style={s.fab} onPress={onHost}>
                 <Text style={s.fabText}>+ Host</Text>
             </TouchableOpacity>
+
+            <Sidebar visible={menuOpen} onClose={() => setMenuOpen(false)} onHost={onHost} />
         </View>
     );
 }
 
 const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: 60 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12, gap: 8 },
+    menuBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
     title: { fontSize: 24, fontWeight: '800' },
-    logoutBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#fef2f2',
-        borderWidth: 1,
-        borderColor: '#fecaca',
-        borderRadius: 20,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-    },
-    logoutText: { color: '#dc2626', fontWeight: '700', fontSize: 13 },
     empty: { textAlign: 'center', color: '#6b7280', marginTop: 40 },
     card: { backgroundColor: '#fff', marginHorizontal: 16, marginBottom: 12, padding: 16, borderRadius: 14, elevation: 2 },
     activity: { fontWeight: '700', fontSize: 16 },
