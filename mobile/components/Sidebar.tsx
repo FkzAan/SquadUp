@@ -9,9 +9,10 @@ type Props = {
     visible: boolean;
     onClose: () => void;
     onHost: () => void;
+    onMyLobbies: () => void;
 };
 
-export default function Sidebar({ visible, onClose, onHost }: Props) {
+export default function Sidebar({ visible, onClose, onHost, onMyLobbies }: Props) {
     const width = Math.min(Dimensions.get('window').width * 0.8, 320);
     const slide = useRef(new Animated.Value(-width)).current;
     const [mounted, setMounted] = useState(visible);
@@ -79,7 +80,20 @@ export default function Sidebar({ visible, onClose, onHost }: Props) {
                         <Text style={s.createText}>Cipta Squad</Text>
                     </TouchableOpacity>
 
-                    <Text style={s.section}>Squad Saya</Text>
+                    <TouchableOpacity
+                        style={s.navBtn}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                            onClose();
+                            onMyLobbies();
+                        }}
+                    >
+                        <Ionicons name="people-outline" size={20} color="#2563eb" />
+                        <Text style={s.navText}>Lobby Saya</Text>
+                        <Ionicons name="chevron-forward" size={18} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+                    </TouchableOpacity>
+
+                    <Text style={s.section}>Dihost oleh saya</Text>
 
                     <ScrollView style={{ flex: 1 }}>
                         {loading && <Text style={s.empty}>Memuatkan...</Text>}
@@ -134,6 +148,17 @@ const s = StyleSheet.create({
         paddingVertical: 12,
     },
     createText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    navBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#eff6ff',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        marginTop: 12,
+    },
+    navText: { color: '#1d4ed8', fontWeight: '700', fontSize: 15 },
     section: { marginTop: 24, marginBottom: 8, fontWeight: '700', color: '#374151' },
     empty: { color: '#6b7280', fontSize: 13, marginTop: 4 },
     item: {

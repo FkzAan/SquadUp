@@ -5,11 +5,19 @@ import { getSession, onAuthChange } from './services/authService';
 import LoginScreen from './screens/LoginScreen';
 import FeedScreen from './screens/FeedScreen';
 import HostLobbyScreen from './screens/HostLobbyScreen';
+import MyLobbiesScreen from './screens/MyLobbiesScreen';
+import LobbyDetailScreen from './screens/LobbyDetailScreen';
+
+type Screen =
+  | { name: 'feed' }
+  | { name: 'host' }
+  | { name: 'myLobbies' }
+  | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' };
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [hosting, setHosting] = useState(false);
+  const [screen, setScreen] = useState<Screen>({ name: 'feed' });
 
   useEffect(() => {
     getSession().then((s) => {
@@ -19,17 +27,24 @@ export default function App() {
     return onAuthChange(setSession);
   }, []);
 
-  // Butang back Android: dari skrin Host, kembali ke Feed (bukan keluar app)
+  // log keluar: kembali ke Feed untuk sesi seterusnya
+  useEffect(() => {
+    if (!session) setScreen({ name: 'feed' });
+  }, [session]);
+
+  // butang back Android
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (hosting) {
-        setHosting(false);
-        return true; // kita uruskan, jangan keluar app
+      if (screen.name === 'feed') return false; // biar app keluar
+      if (screen.name === 'detail') {
+        setScreen({ name: screen.from === 'myLobbies' ? 'myLobbies' : 'feed' });
+      } else {
+        setScreen({ name: 'feed' });
       }
-      return false; // di Feed/Login: biar app keluar seperti biasa
+      return true;
     });
     return () => sub.remove();
-  }, [hosting]);
+  }, [screen]);
 
   if (!ready) {
     return (
@@ -40,6 +55,31 @@ export default function App() {
   }
 
   if (!session) return <LoginScreen />;
-  if (hosting) return <HostLobbyScreen onDone={() => setHosting(false)} />;
-  return <FeedScreen onHost={() => setHosting(true)} />;
+
+  switch (screen.name) {
+    case 'host':
+      return <HostLobbyScreen onDone={() => setScreen({ name: 'feed' })} />;
+    case 'myLobbies':
+      return (
+        <MyLobbiesScreen
+          onBack={() => setScreen({ name: 'feed' })}
+          onOpen={(id) => setScreen({ name: 'detail', lobbyId: id, from: 'myLobbies' })}
+        />
+      );
+    case 'detail':
+      return (
+        <LobbyDetailScreen
+          lobbyId={screen.lobbyId}
+          onBack={() => setScreen({ name: screen.from === 'myLobbies' ? 'myLobbies' : 'feed' })}
+        />
+      );
+    default:
+      return (
+        <FeedScreen
+          onHost={() => setScreen({ name: 'host' })}
+          onMyLobbies={() => setScreen({ name: 'myLobbies' })}
+          onOpenLobby={(id) => setScreen({ name: 'detail', lobbyId: id, from: 'feed' })}
+        />
+      );
+  }
 }

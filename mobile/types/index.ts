@@ -21,14 +21,26 @@ export type Lobby = {
     current_players: number;
     skill_level: SkillLevel;
     status: 'open' | 'full' | 'ended' | 'cancelled';
-    created_at: string;
+    starts_at: string;
     ends_at: string;
+    created_at: string;
+};
+
+export type JoinedLobby = Lobby & { joined_at: string };
+
+export type LobbyMember = {
+    user_id: string;
+    name: string;
+    joined_at: string;
+    is_host: boolean;
 };
 
 export type NewLobbyInput = {
     activity_type: string;
     location_name: string;
     facility: Facility | null;
+    latitude: number;
+    longitude: number;
     max_players: number;
     skill_level: SkillLevel;
 };
