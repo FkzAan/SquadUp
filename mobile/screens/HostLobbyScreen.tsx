@@ -5,10 +5,40 @@ import { Ionicons } from '@expo/vector-icons';
 import { fetchFacilities } from '../services/facilityService';
 import { createLobby as createLobbyApi } from '../services/lobbyService';
 import LocationPickerModal from '../components/LocationPickerModal';
+import DateTimeField from '../components/DateTimeField';
+import { formatClock } from '../utils/lobby';
 import type { Coords } from '../components/LocationPickerModal';
 import type { Facility, SkillLevel } from '../types';
 
 const SKILLS: SkillLevel[] = ['Friendly', 'Competitive'];
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const GRACE_MINUTES = 15;
+const MAX_DURATION_HOURS = 8;
+
+function nextQuarterHour(): Date {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    d.setMinutes(d.getMinutes() + (15 - (d.getMinutes() % 15)));
+    return d;
+}
+
+// gabung tarikh (day) dengan jam/minit (time)
+function combine(day: Date, time: Date): Date {
+    return new Date(day.getFullYear(), day.getMonth(), day.getDate(), time.getHours(), time.getMinutes(), 0, 0);
+}
+
+// kalau masa tamat <= masa mula, anggap tamat pada hari berikutnya (cth 23:00 - 01:00)
+function computeRange(day: Date, startTime: Date, endTime: Date) {
+    const start = combine(day, startTime);
+    let end = combine(day, endTime);
+    let overnight = false;
+    if (end.getTime() <= start.getTime()) {
+        end = new Date(end.getTime() + 24 * HOUR);
+        overnight = true;
+    }
+    return { start, end, overnight };
+}
 
 export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
     const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -21,9 +51,26 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
     const [skill, setSkill] = useState<SkillLevel>(SKILLS[0]);
     const [saving, setSaving] = useState(false);
 
+    const [day, setDay] = useState<Date>(new Date());
+    const [startTime, setStartTime] = useState<Date>(() => nextQuarterHour());
+    const [endTime, setEndTime] = useState<Date>(() => new Date(nextQuarterHour().getTime() + 2 * HOUR));
+
+    const range = computeRange(day, startTime, endTime);
+    const closing = new Date(range.end.getTime() + GRACE_MINUTES * MINUTE);
+    const today0 = new Date();
+    today0.setHours(0, 0, 0, 0);
+
     useEffect(() => {
         fetchFacilities().then(setFacilities);
     }, []);
+
+    // tukar masa mula: masa tamat ikut bergerak (tempoh kekal sama)
+    function onStartChange(d: Date) {
+        const current = computeRange(day, startTime, endTime);
+        const duration = current.end.getTime() - current.start.getTime();
+        setStartTime(d);
+        setEndTime(new Date(combine(day, d).getTime() + duration));
+    }
 
     function pickFacility(f: Facility) {
         setFacility(f);
@@ -51,6 +98,15 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
             Alert.alert('Lokasi belum ditandakan', 'Sila pilih lokasi tepat di peta.');
             return;
         }
+        if (range.end.getTime() <= Date.now()) {
+            Alert.alert('Masa tidak sah', 'Masa tamat mesti pada masa hadapan.');
+            return;
+        }
+        if (range.end.getTime() - range.start.getTime() > MAX_DURATION_HOURS * HOUR) {
+            Alert.alert('Tempoh terlalu panjang', `Tempoh maksimum ialah ${MAX_DURATION_HOURS} jam.`);
+            return;
+        }
+
         setSaving(true);
         const err = await createLobbyApi({
             activity_type: activity.trim(),
@@ -59,6 +115,8 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
             latitude: coords.latitude,
             longitude: coords.longitude,
             max_players: maxPlayers,
+            starts_at: range.start.toISOString(),
+            ends_at: range.end.toISOString(),
             skill_level: skill,
         });
         setSaving(false);
@@ -126,6 +184,22 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     </Text>
                 </TouchableOpacity>
 
+                <Text style={s.label}>Bila nak main?</Text>
+                <View style={s.timeRow}>
+                    <DateTimeField label="Tarikh" mode="date" value={day} onChange={setDay} minimumDate={today0} />
+                    <DateTimeField label="Mula" mode="time" value={startTime} onChange={onStartChange} />
+                    <DateTimeField label="Tamat" mode="time" value={endTime} onChange={setEndTime} />
+                </View>
+                <View style={s.summary}>
+                    <Text style={s.summaryMain}>
+                        {formatClock(range.start)} – {formatClock(range.end)}
+                        {range.overnight ? ' (hari berikutnya)' : ''}
+                    </Text>
+                    <Text style={s.summarySub}>
+                        Lobby ditutup automatik pada {formatClock(closing)} ({GRACE_MINUTES} minit selepas tamat).
+                    </Text>
+                </View>
+
                 <Text style={s.label}>Jumlah pemain (termasuk kamu): {maxPlayers}</Text>
                 <Slider
                     minimumValue={2}
@@ -167,7 +241,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
 }
 
 const s = StyleSheet.create({
-    container: { padding: 20, paddingTop: 60 },
+    container: { padding: 20, paddingTop: 60, paddingBottom: 40 },
     topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
     title: { fontSize: 26, fontWeight: '800' },
@@ -175,6 +249,10 @@ const s = StyleSheet.create({
     hint: { color: '#6b7280', fontSize: 12, marginBottom: 6 },
     input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12 },
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    timeRow: { flexDirection: 'row', gap: 8 },
+    summary: { backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginTop: 10 },
+    summaryMain: { color: '#1d4ed8', fontWeight: '800' },
+    summarySub: { color: '#3b82f6', fontSize: 12, marginTop: 4 },
     mapBtn: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -3,7 +3,7 @@ import { RefreshControl, SectionList, StyleSheet, Text, TouchableOpacity, View }
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUserId } from '../services/authService';
 import { fetchMyJoinedLobbies, subscribeToLobbies } from '../services/lobbyService';
-import { formatTime, isEnded, statusLabel } from '../utils/lobby';
+import { formatSchedule, formatTime, isEnded, statusLabel } from '../utils/lobby';
 import type { JoinedLobby } from '../types';
 
 type Props = {
@@ -68,6 +68,7 @@ export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
                                 </View>
                             </View>
                             <Text style={s.location}>{item.location_name}</Text>
+                            <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at)}</Text>
                             <View style={s.metaRow}>
                                 <Text style={s.meta}>{item.current_players}/{item.max_players} pemain</Text>
                                 {item.host_id === myId && <Text style={s.hostTag}>Host</Text>}
@@ -98,4 +99,5 @@ const s = StyleSheet.create({
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
     meta: { color: '#6b7280', fontSize: 12, marginTop: 2 },
     hostTag: { backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: '700', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
+    schedule: { color: '#2563eb', fontWeight: '600', marginTop: 4 },
 });

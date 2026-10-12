@@ -19,6 +19,12 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'feed' });
 
+  // kembali dari skrin butiran ke skrin asal
+  function backFromDetail(from: 'feed' | 'myLobbies') {
+    if (from === 'myLobbies') setScreen({ name: 'myLobbies' });
+    else setScreen({ name: 'feed' });
+  }
+
   useEffect(() => {
     getSession().then((s) => {
       setSession(s);
@@ -37,7 +43,7 @@ export default function App() {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (screen.name === 'feed') return false; // biar app keluar
       if (screen.name === 'detail') {
-        setScreen({ name: screen.from === 'myLobbies' ? 'myLobbies' : 'feed' });
+        backFromDetail(screen.from);
       } else {
         setScreen({ name: 'feed' });
       }
@@ -70,7 +76,7 @@ export default function App() {
       return (
         <LobbyDetailScreen
           lobbyId={screen.lobbyId}
-          onBack={() => setScreen({ name: screen.from === 'myLobbies' ? 'myLobbies' : 'feed' })}
+          onBack={() => backFromDetail(screen.from)}
         />
       );
     default:

@@ -12,8 +12,8 @@ export async function fetchActiveLobbies(): Promise<Lobby[]> {
         .from('squad_lobbies')
         .select('*')
         .in('status', ['open', 'full'])
-        .gt('ends_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+        .gt('expires_at', new Date().toISOString())
+        .order('starts_at', { ascending: true });
     if (error || !data) return [];
     return data as Lobby[];
 }
@@ -28,7 +28,8 @@ export async function fetchMyLobbies(): Promise<Lobby[]> {
         .select('*')
         .eq('host_id', userId)
         .in('status', ['open', 'full'])
-        .order('created_at', { ascending: false });
+        .gt('expires_at', new Date().toISOString())
+        .order('starts_at', { ascending: true });
     if (error || !data) return [];
     return data as Lobby[];
 }
@@ -93,6 +94,8 @@ export async function createLobby(input: NewLobbyInput): Promise<string | null> 
         longitude: input.longitude,
         max_players: input.max_players,
         skill_level: input.skill_level,
+        starts_at: input.starts_at,
+        ends_at: input.ends_at,
     });
     return error?.message ?? null;
 }

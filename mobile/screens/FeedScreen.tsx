@@ -6,6 +6,7 @@ import { fetchMyJoinedLobbies, joinLobby } from '../services/lobbyService';
 import Sidebar from '../components/Sidebar';
 import LobbyMap from '../components/LobbyMap';
 import type { Lobby } from '../types';
+import { formatSchedule, isOver } from '../utils/lobby';
 
 type Props = {
     onHost: () => void;
@@ -36,11 +37,13 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby }: Props) 
 
     function renderCard(item: Lobby) {
         const joined = joinedIds.has(item.id);
-        const full = item.status === 'full';
+        const over = isOver(item);
+        const unavailable = item.status === 'full' || over;
         return (
             <View style={s.card}>
                 <Text style={s.activity}>{item.activity_type} · {item.skill_level}</Text>
                 <Text style={s.location}>{item.location_name}</Text>
+                <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at)}</Text>
                 {item.latitude != null && item.longitude != null && (
                     <Text style={s.coords}>{item.latitude.toFixed(5)}, {item.longitude.toFixed(5)}</Text>
                 )}
@@ -52,11 +55,11 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby }: Props) 
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
-                        style={[s.joinBtn, full && s.joinBtnDisabled]}
-                        disabled={full}
+                        style={[s.joinBtn, unavailable && s.joinBtnDisabled]}
+                        disabled={unavailable}
                         onPress={() => onJoin(item.id)}
                     >
-                        <Text style={s.joinText}>{full ? 'Penuh' : 'Join'}</Text>
+                        <Text style={s.joinText}>{over ? 'Sudah tamat' : item.status === 'full' ? 'Penuh' : 'Join'}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -150,4 +153,5 @@ const s = StyleSheet.create({
     viewText: { color: '#166534', fontWeight: '700' },
     fab: { position: 'absolute', right: 20, bottom: 30, backgroundColor: '#16a34a', borderRadius: 28, paddingVertical: 14, paddingHorizontal: 22, elevation: 4 },
     fabText: { color: '#fff', fontWeight: '800' },
+    schedule: { color: '#2563eb', fontWeight: '600', marginTop: 4 },
 });

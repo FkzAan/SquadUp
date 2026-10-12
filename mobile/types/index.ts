@@ -23,6 +23,7 @@ export type Lobby = {
     status: 'open' | 'full' | 'ended' | 'cancelled';
     starts_at: string;
     ends_at: string;
+    expires_at: string;
     created_at: string;
 };
 
@@ -42,5 +43,7 @@ export type NewLobbyInput = {
     latitude: number;
     longitude: number;
     max_players: number;
+    starts_at: string;
+    ends_at: string;
     skill_level: SkillLevel;
 };
