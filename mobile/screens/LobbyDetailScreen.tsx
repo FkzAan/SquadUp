@@ -24,6 +24,7 @@ import {
 } from '../services/lobbyService';
 import { formatSchedule, formatTime, isEnded, statusLabel } from '../utils/lobby';
 import type { Lobby, LobbyMember } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
   lobbyId: string;
@@ -31,7 +32,12 @@ type Props = {
   onOpenChat: (title: string) => void;
 };
 
-export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props) {
+export default function LobbyDetailScreen({
+  lobbyId,
+  onBack,
+  onOpenChat,
+}: Props) {
+  const { t, language } = useLanguage();
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [members, setMembers] = useState<LobbyMember[]>([]);
   const [myId, setMyId] = useState<string | null>(null);
@@ -63,7 +69,7 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
       try {
         await Share.share({ message: text });
       } catch {
-        Alert.alert('Tak dapat menyalin', `Koordinat: ${text}`);
+        Alert.alert(t('cantCopy'), `${t('coordinates')}: ${text}`);
       }
     }
   }
@@ -80,22 +86,22 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
           throw new Error('fallback');
         }
       } catch {
-        Alert.alert('Tak dapat buka Google Maps', `Salin pautan ini ke pelayar:\n${web}`);
+        Alert.alert(t('cantOpenMaps'), t('copyLink', { url: web }));
       }
     }
   }
 
   function confirmLeave() {
-    Alert.alert('Keluar dari squad?', 'Kamu tak lagi akan menyertai aktiviti ini.', [
-      { text: 'Batal', style: 'cancel' },
+    Alert.alert(t('leaveTitle'), t('leaveMessage'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Keluar',
+        text: t('leave'),
         style: 'destructive',
         onPress: async () => {
           setBusy(true);
           const err = await leaveLobby(lobbyId);
           setBusy(false);
-          if (err) Alert.alert('Ralat', err);
+          if (err) Alert.alert(t('error'), err);
           else onBack();
         },
       },
@@ -103,16 +109,16 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
   }
 
   function confirmDelete() {
-    Alert.alert('Padam squad?', 'Squad ini akan dipadam untuk semua pemain.', [
-      { text: 'Batal', style: 'cancel' },
+    Alert.alert(t('deleteTitle'), t('deleteMessage'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Padam',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           setBusy(true);
           const err = await deleteLobby(lobbyId);
           setBusy(false);
-          if (err) Alert.alert('Ralat', err);
+          if (err) Alert.alert(t('error'), err);
           else onBack();
         },
       },
@@ -124,7 +130,7 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
       <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
         <Ionicons name="arrow-back" size={24} color="#111827" />
       </TouchableOpacity>
-      <Text style={s.title} numberOfLines={1}>{lobby ? lobby.activity_type : 'Butiran Squad'}</Text>
+      <Text style={s.title} numberOfLines={1}>{lobby ? lobby.activity_type : t('lobbyDetails')}</Text>
     </View>
   );
 
@@ -141,15 +147,15 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
     return (
       <View style={s.container}>
         {Header}
-        <Text style={s.empty}>Squad ini sudah dipadam atau tidak lagi wujud.</Text>
+        <Text style={s.empty}>{t('missingLobby')}</Text>
         <TouchableOpacity style={s.primaryBtn} onPress={onBack}>
-          <Text style={s.primaryText}>Kembali</Text>
+          <Text style={s.primaryText}>{t('back')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const st = statusLabel(lobby);
+  const st = statusLabel(lobby, language);
   const ended = isEnded(lobby);
   const isHost = lobby.host_id === myId;
   const isMember = members.some((m) => m.user_id === myId);
@@ -169,17 +175,17 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
             <Text style={[s.badgeText, { color: st.fg }]}>{st.text}</Text>
           </View>
         </View>
-        <Text style={s.sub}>Aras: {lobby.skill_level}</Text>
+        <Text style={s.sub}>{t('level', { level: lobby.skill_level })}</Text>
       </View>
 
       <View style={s.card}>
-        <Text style={s.cardTitle}>Lokasi</Text>
+        <Text style={s.cardTitle}>{t('location')}</Text>
         <View style={s.iconRow}>
           <Ionicons name="location" size={18} color="#2563eb" />
           <Text style={s.value}>{lobby.location_name}</Text>
         </View>
 
-        <Text style={s.coordLabel}>Koordinat</Text>
+        <Text style={s.coordLabel}>{t('coordinates')}</Text>
         {hasCoords ? (
           <>
             <TouchableOpacity
@@ -197,7 +203,7 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
                   color={copied ? '#16a34a' : '#2563eb'}
                 />
                 <Text style={[s.copyText, copied && { color: '#16a34a' }]}>
-                  {copied ? 'Disalin' : 'Salin'}
+                  {copied ? t('copied') : t('copy')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -208,28 +214,28 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
               activeOpacity={0.8}
             >
               <Ionicons name="map-outline" size={18} color="#fff" />
-              <Text style={s.mapsText}>Buka di Google Maps</Text>
+              <Text style={s.mapsText}>{t('openMaps')}</Text>
             </TouchableOpacity>
           </>
         ) : (
           <Text style={s.noCoords}>
-            Squad ini tiada koordinat (dicipta sebelum ciri pin lokasi). Minta host cipta semula dengan pin di peta.
+            {t('noCoordinates')}
           </Text>
         )}
       </View>
 
       <View style={s.card}>
-        <Text style={s.cardTitle}>Masa</Text>
+        <Text style={s.cardTitle}>{t('time')}</Text>
         <View style={s.iconRow}>
           <Ionicons name="time-outline" size={18} color="#2563eb" />
-          <Text style={s.value}>{formatSchedule(lobby.starts_at, lobby.ends_at)}</Text>
+          <Text style={s.value}>{formatSchedule(lobby.starts_at, lobby.ends_at, language)}</Text>
         </View>
-        <Text style={s.sub}>Lobby ditutup: {formatTime(lobby.expires_at)}</Text>
+        <Text style={s.sub}>{t('lobbyCloses', { time: formatTime(lobby.expires_at) })}</Text>
       </View>
 
       <View style={s.card}>
         <View style={s.rowBetween}>
-          <Text style={s.cardTitle}>Pemain</Text>
+          <Text style={s.cardTitle}>{t('players')}</Text>
           <Text style={s.count}>{lobby.current_players}/{lobby.max_players}</Text>
         </View>
         <View style={s.barBg}>
@@ -242,16 +248,16 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
             <View style={{ flex: 1 }}>
               <Text style={s.memberName}>
                 {m.name}
-                {m.user_id === myId ? ' (kamu)' : ''}
+                {m.user_id === myId ? t('you') : ''}
               </Text>
-              <Text style={s.sub}>Join: {formatTime(m.joined_at)}</Text>
+              <Text style={s.sub}>{t('joinedAt', { time: formatTime(m.joined_at) })}</Text>
             </View>
             {m.is_host && <Text style={s.hostTag}>Host</Text>}
           </View>
         ))}
       </View>
 
-      {isMember && (
+      {(isHost || isMember) && (
         <TouchableOpacity style={s.chatBtn} onPress={() => onOpenChat(lobby.activity_type)} activeOpacity={0.8}>
           <Ionicons name="chatbubbles-outline" size={18} color="#fff" />
           <Text style={s.chatText}>Buka Chat Squad</Text>
@@ -261,18 +267,18 @@ export default function LobbyDetailScreen({ lobbyId, onBack, onOpenChat }: Props
       {!ended && isHost && (
         <TouchableOpacity style={s.dangerBtn} onPress={confirmDelete} disabled={busy} activeOpacity={0.8}>
           <Ionicons name="trash-outline" size={18} color="#dc2626" />
-          <Text style={s.dangerText}>{busy ? 'Memproses...' : 'Padam squad'}</Text>
+          <Text style={s.dangerText}>{busy ? t('processing') : t('deleteSquad')}</Text>
         </TouchableOpacity>
       )}
 
       {!ended && !isHost && isMember && (
         <TouchableOpacity style={s.dangerBtn} onPress={confirmLeave} disabled={busy} activeOpacity={0.8}>
           <Ionicons name="exit-outline" size={18} color="#dc2626" />
-          <Text style={s.dangerText}>{busy ? 'Memproses...' : 'Keluar dari squad'}</Text>
+          <Text style={s.dangerText}>{busy ? t('processing') : t('leaveSquad')}</Text>
         </TouchableOpacity>
       )}
 
-      {ended && <Text style={s.endedNote}>Aktiviti ini sudah tamat. Ia disimpan dalam sejarah kamu.</Text>}
+      {ended && <Text style={s.endedNote}>{t('endedHistory')}</Text>}
     </ScrollView>
   );
 }

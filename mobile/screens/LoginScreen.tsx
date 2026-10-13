@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { signIn, signUp } from '../services/authService';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function LoginScreen() {
+    const { t } = useLanguage();
     const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -11,26 +14,27 @@ export default function LoginScreen() {
 
     async function submit() {
         if (!email || !password || (mode === 'signup' && !name)) {
-            Alert.alert('Lengkapkan semua ruangan');
+            Alert.alert(t('fillFields'));
             return;
         }
         setLoading(true);
         const err = mode === 'signup' ? await signUp(name, email, password) : await signIn(email, password);
         setLoading(false);
-        if (err) Alert.alert('Ralat', err);
+        if (err) Alert.alert(t('error'), err);
     }
 
     return (
         <View style={s.container}>
+            <View style={s.languageSelector}><LanguageSelector /></View>
             <Text style={s.logo}>SquadUp</Text>
-            <Text style={s.tagline}>Cari +1 untuk aktiviti kamu, tanpa kekok.</Text>
+            <Text style={s.tagline}>{t('loginTagline')}</Text>
 
             {mode === 'signup' && (
-                <TextInput style={s.input} placeholder="Nama panggilan" value={name} onChangeText={setName} />
+                <TextInput style={s.input} placeholder={t('nickname')} value={name} onChangeText={setName} />
             )}
             <TextInput
                 style={s.input}
-                placeholder="Email"
+                placeholder={t('email')}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={email}
@@ -38,7 +42,7 @@ export default function LoginScreen() {
             />
             <TextInput
                 style={s.input}
-                placeholder="Password (min 6 aksara)"
+                placeholder={t('passwordHint')}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -46,13 +50,13 @@ export default function LoginScreen() {
 
             <TouchableOpacity style={s.button} onPress={submit} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" /> : (
-                    <Text style={s.buttonText}>{mode === 'login' ? 'Log Masuk' : 'Daftar'}</Text>
+                    <Text style={s.buttonText}>{mode === 'login' ? t('login') : t('signup')}</Text>
                 )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
                 <Text style={s.link}>
-                    {mode === 'login' ? 'Belum ada akaun? Daftar' : 'Dah ada akaun? Log masuk'}
+                    {mode === 'login' ? t('switchSignup') : t('switchLogin')}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -61,6 +65,7 @@ export default function LoginScreen() {
 
 const s = StyleSheet.create({
     container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
+    languageSelector: { position: 'absolute', top: 60, right: 24 },
     logo: { fontSize: 36, fontWeight: '800', color: '#2563eb', textAlign: 'center' },
     tagline: { textAlign: 'center', color: '#6b7280', marginBottom: 32, marginTop: 4 },
     input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 14, marginBottom: 12 },

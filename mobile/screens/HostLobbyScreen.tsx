@@ -9,6 +9,7 @@ import DateTimeField from '../components/DateTimeField';
 import { formatClock } from '../utils/lobby';
 import type { Coords } from '../components/LocationPickerModal';
 import type { Facility, SkillLevel } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 const SKILLS: SkillLevel[] = ['Friendly', 'Competitive'];
 const MINUTE = 60 * 1000;
@@ -41,6 +42,7 @@ function computeRange(day: Date, startTime: Date, endTime: Date) {
 }
 
 export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
+    const { t } = useLanguage();
     const [facilities, setFacilities] = useState<Facility[]>([]);
     const [activity, setActivity] = useState('');
     const [locationName, setLocationName] = useState('');
@@ -91,19 +93,19 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
 
     async function createLobby() {
         if (!activity.trim() || !locationName.trim()) {
-            Alert.alert('Lengkapkan', 'Sila isi nama aktiviti dan nama lokasi.');
+            Alert.alert(t('complete'), t('fillActivityLocation'));
             return;
         }
         if (!coords) {
-            Alert.alert('Lokasi belum ditandakan', 'Sila pilih lokasi tepat di peta.');
+            Alert.alert(t('locationUnmarked'), t('pickExactLocation'));
             return;
         }
         if (range.end.getTime() <= Date.now()) {
-            Alert.alert('Masa tidak sah', 'Masa tamat mesti pada masa hadapan.');
+            Alert.alert(t('invalidTime'), t('endMustBeFuture'));
             return;
         }
         if (range.end.getTime() - range.start.getTime() > MAX_DURATION_HOURS * HOUR) {
-            Alert.alert('Tempoh terlalu panjang', `Tempoh maksimum ialah ${MAX_DURATION_HOURS} jam.`);
+            Alert.alert(t('tooLong'), t('maxDuration', { hours: MAX_DURATION_HOURS }));
             return;
         }
 
@@ -120,7 +122,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
             skill_level: skill,
         });
         setSaving(false);
-        if (err) Alert.alert('Ralat', err);
+        if (err) Alert.alert(t('error'), err);
         else onDone();
     }
 
@@ -131,27 +133,27 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     <TouchableOpacity style={s.backBtn} onPress={onDone} activeOpacity={0.7}>
                         <Ionicons name="arrow-back" size={24} color="#111827" />
                     </TouchableOpacity>
-                    <Text style={s.title}>Host a Squad</Text>
+                    <Text style={s.title}>{t('hostSquad')}</Text>
                 </View>
 
-                <Text style={s.label}>Aktiviti</Text>
+                <Text style={s.label}>{t('activity')}</Text>
                 <TextInput
                     style={s.input}
-                    placeholder="cth: Badminton, Jogging, Main chess..."
+                    placeholder={t('activityExample')}
                     value={activity}
                     onChangeText={setActivity}
                 />
 
-                <Text style={s.label}>Nama lokasi</Text>
+                <Text style={s.label}>{t('locationName')}</Text>
                 <TextInput
                     style={s.input}
-                    placeholder="cth: Gelanggang blok C"
+                    placeholder={t('locationExample')}
                     value={locationName}
                     onChangeText={onLocationChange}
                 />
                 {facilities.length > 0 && (
                     <>
-                        <Text style={s.hint}>Atau pilih fasiliti perbandaran:</Text>
+                        <Text style={s.hint}>{t('orFacility')}</Text>
                         <View style={s.row}>
                             {facilities.map((f) => (
                                 <TouchableOpacity
@@ -166,7 +168,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     </>
                 )}
 
-                <Text style={s.label}>Lokasi tepat di peta</Text>
+                <Text style={s.label}>{t('exactMapLocation')}</Text>
                 <TouchableOpacity
                     style={[s.mapBtn, coords && s.mapBtnDone]}
                     onPress={() => setPickerOpen(true)}
@@ -179,28 +181,28 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     />
                     <Text style={[s.mapBtnText, coords && s.mapBtnTextDone]}>
                         {coords
-                            ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (tukar)`
-                            : 'Pilih lokasi di peta'}
+                            ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (${t('change')})`
+                            : t('pickOnMap')}
                     </Text>
                 </TouchableOpacity>
 
-                <Text style={s.label}>Bila nak main?</Text>
+                <Text style={s.label}>{t('whenPlay')}</Text>
                 <View style={s.timeRow}>
-                    <DateTimeField label="Tarikh" mode="date" value={day} onChange={setDay} minimumDate={today0} />
-                    <DateTimeField label="Mula" mode="time" value={startTime} onChange={onStartChange} />
-                    <DateTimeField label="Tamat" mode="time" value={endTime} onChange={setEndTime} />
+                    <DateTimeField label={t('date')} mode="date" value={day} onChange={setDay} minimumDate={today0} />
+                    <DateTimeField label={t('start')} mode="time" value={startTime} onChange={onStartChange} />
+                    <DateTimeField label={t('end')} mode="time" value={endTime} onChange={setEndTime} />
                 </View>
                 <View style={s.summary}>
                     <Text style={s.summaryMain}>
                         {formatClock(range.start)} – {formatClock(range.end)}
-                        {range.overnight ? ' (hari berikutnya)' : ''}
+                        {range.overnight ? t('nextDay') : ''}
                     </Text>
                     <Text style={s.summarySub}>
-                        Lobby ditutup automatik pada {formatClock(closing)} ({GRACE_MINUTES} minit selepas tamat).
+                        {t('autoClose', { time: formatClock(closing), minutes: GRACE_MINUTES })}
                     </Text>
                 </View>
 
-                <Text style={s.label}>Jumlah pemain (termasuk kamu): {maxPlayers}</Text>
+                <Text style={s.label}>{t('totalPlayers', { count: maxPlayers })}</Text>
                 <Slider
                     minimumValue={2}
                     maximumValue={12}
@@ -216,7 +218,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     <Text style={s.hint}>12</Text>
                 </View>
 
-                <Text style={s.label}>Aras kemahiran</Text>
+                <Text style={s.label}>{t('skillLevel')}</Text>
                 <View style={s.row}>
                     {SKILLS.map((k) => (
                         <TouchableOpacity key={k} onPress={() => setSkill(k)} style={[s.chip, k === skill && s.chipActive]}>
@@ -226,7 +228,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                 </View>
 
                 <TouchableOpacity style={s.button} onPress={createLobby} disabled={saving}>
-                    <Text style={s.buttonText}>{saving ? 'Mencipta...' : 'Cipta Squad'}</Text>
+                    <Text style={s.buttonText}>{saving ? t('creating') : t('createSquad')}</Text>
                 </TouchableOpacity>
             </ScrollView>
 

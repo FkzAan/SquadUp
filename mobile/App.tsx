@@ -8,6 +8,7 @@ import HostLobbyScreen from './screens/HostLobbyScreen';
 import MyLobbiesScreen from './screens/MyLobbiesScreen';
 import LobbyDetailScreen from './screens/LobbyDetailScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import { LanguageProvider } from './context/LanguageContext';
 import LobbyChatScreen from './screens/LobbyChatScreen';
 
 type Screen =
@@ -18,7 +19,7 @@ type Screen =
   | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' }
   | { name: 'chat'; lobbyId: string; title: string; from: 'feed' | 'myLobbies' };
 
-export default function App() {
+function AppContent() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'feed' });
@@ -107,4 +108,8 @@ export default function App() {
         />
       );
   }
+}
+
+export default function App() {
+  return <LanguageProvider><AppContent /></LanguageProvider>;
 }

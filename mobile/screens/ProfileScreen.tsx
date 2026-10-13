@@ -16,8 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
 import { changePassword, fetchMyProfile, removeAvatar, updateName, uploadAvatar } from '../services/profileService';
 import type { Profile } from '../types';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function ProfileScreen({ onBack }: { onBack: () => void }) {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,28 +56,28 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
 
     const asset = result.assets[0];
     if (!asset.base64) {
-      Alert.alert('Ralat', 'Tak dapat membaca gambar. Cuba gambar lain.');
+      Alert.alert(t('error'), t('cannotReadImage'));
       return;
     }
 
     setUploading(true);
     const err = await uploadAvatar(asset.base64, asset.mimeType ?? 'image/jpeg');
     setUploading(false);
-    if (err) Alert.alert('Gagal muat naik', err);
+    if (err) Alert.alert(t('uploadFailed'), err);
     else load();
   }
 
   function confirmRemove() {
-    Alert.alert('Buang gambar profil?', 'Inisial nama kamu akan dipaparkan sebagai ganti.', [
-      { text: 'Batal', style: 'cancel' },
+    Alert.alert(t('removeImageTitle'), t('removeImageMessage'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Buang',
+        text: t('remove'),
         style: 'destructive',
         onPress: async () => {
           setUploading(true);
           const err = await removeAvatar();
           setUploading(false);
-          if (err) Alert.alert('Ralat', err);
+          if (err) Alert.alert(t('error'), err);
           else load();
         },
       },
@@ -84,42 +87,42 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
   async function saveName() {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
-      Alert.alert('Nama terlalu pendek', 'Nama mesti sekurang-kurangnya 2 aksara.');
+      Alert.alert(t('shortNameTitle'), t('shortNameMessage'));
       return;
     }
     setSavingName(true);
     const err = await updateName(trimmed);
     setSavingName(false);
-    if (err) Alert.alert('Ralat', err);
+    if (err) Alert.alert(t('error'), err);
     else {
-      Alert.alert('Disimpan', 'Nama kamu sudah dikemas kini.');
+      Alert.alert(t('saved'), t('nameUpdated'));
       load();
     }
   }
 
   async function savePassword() {
     if (!currentPw || !newPw || !confirmPw) {
-      Alert.alert('Lengkapkan', 'Sila isi ketiga-tiga ruangan password.');
+      Alert.alert(t('complete'), t('fillPasswords'));
       return;
     }
     if (newPw.length < 6) {
-      Alert.alert('Password terlalu pendek', 'Password baharu mesti sekurang-kurangnya 6 aksara.');
+      Alert.alert(t('shortPasswordTitle'), t('shortPasswordMessage'));
       return;
     }
     if (newPw !== confirmPw) {
-      Alert.alert('Tak sepadan', 'Password baharu dan pengesahan mesti sama.');
+      Alert.alert(t('passwordMismatchTitle'), t('passwordMismatch'));
       return;
     }
     if (newPw === currentPw) {
-      Alert.alert('Sama dengan password lama', 'Pilih password yang berbeza.');
+      Alert.alert(t('samePasswordTitle'), t('samePasswordMessage'));
       return;
     }
     setSavingPw(true);
     const err = await changePassword(currentPw, newPw);
     setSavingPw(false);
-    if (err) Alert.alert('Gagal', err);
+    if (err) Alert.alert(t('failed'), err);
     else {
-      Alert.alert('Berjaya', 'Password kamu sudah ditukar.');
+      Alert.alert(t('success'), t('passwordChanged'));
       setCurrentPw('');
       setNewPw('');
       setConfirmPw('');
@@ -131,7 +134,7 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
       <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
         <Ionicons name="arrow-back" size={24} color="#111827" />
       </TouchableOpacity>
-      <Text style={s.title}>Profil Saya</Text>
+      <Text style={s.title}>{t('myProfile')}</Text>
     </View>
   );
 
@@ -169,23 +172,23 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
           <Text style={s.email}>{profile.email}</Text>
           <View style={s.avatarActions}>
             <TouchableOpacity onPress={pickImage} disabled={uploading}>
-              <Text style={s.link}>Tukar gambar</Text>
+              <Text style={s.link}>{t('changeImage')}</Text>
             </TouchableOpacity>
             {profile.avatar_url && (
               <TouchableOpacity onPress={confirmRemove} disabled={uploading}>
-                <Text style={s.linkDanger}>Buang gambar</Text>
+                <Text style={s.linkDanger}>{t('removeImage')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
         <View style={s.card}>
-          <Text style={s.cardTitle}>Nama</Text>
+          <Text style={s.cardTitle}>{t('name')}</Text>
           <TextInput
             style={s.input}
             value={name}
             onChangeText={setName}
-            placeholder="Nama panggilan"
+            placeholder={t('nickname')}
             maxLength={40}
           />
           <TouchableOpacity
@@ -194,17 +197,23 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
             disabled={!nameChanged || savingName}
             activeOpacity={0.8}
           >
-            <Text style={s.primaryText}>{savingName ? 'Menyimpan...' : 'Simpan nama'}</Text>
+            <Text style={s.primaryText}>{savingName ? t('saving') : t('saveName')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={s.card}>
-          <Text style={s.cardTitle}>Tukar password</Text>
+          <Text style={s.cardTitle}>{t('languagePreferences')}</Text>
+          <Text style={s.languageHint}>{t('chooseLanguage')}</Text>
+          <LanguageSelector expanded />
+        </View>
+
+        <View style={s.card}>
+          <Text style={s.cardTitle}>{t('changePassword')}</Text>
           <TextInput
             style={s.input}
             value={currentPw}
             onChangeText={setCurrentPw}
-            placeholder="Password semasa"
+            placeholder={t('currentPassword')}
             secureTextEntry
             autoCapitalize="none"
           />
@@ -212,7 +221,7 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
             style={s.input}
             value={newPw}
             onChangeText={setNewPw}
-            placeholder="Password baharu (min 6 aksara)"
+            placeholder={t('newPasswordHint')}
             secureTextEntry
             autoCapitalize="none"
           />
@@ -220,7 +229,7 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
             style={s.input}
             value={confirmPw}
             onChangeText={setConfirmPw}
-            placeholder="Sahkan password baharu"
+            placeholder={t('confirmPassword')}
             secureTextEntry
             autoCapitalize="none"
           />
@@ -230,7 +239,7 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
             disabled={savingPw}
             activeOpacity={0.8}
           >
-            <Text style={s.primaryText}>{savingPw ? 'Menukar...' : 'Tukar password'}</Text>
+            <Text style={s.primaryText}>{savingPw ? t('changing') : t('changePassword')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -262,6 +271,7 @@ const s = StyleSheet.create({
   link: { color: '#2563eb', fontWeight: '700' },
   linkDanger: { color: '#dc2626', fontWeight: '700' },
   card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 14, elevation: 2 },
+  languageHint: { color: '#6b7280', marginBottom: 12, fontSize: 13 },
   cardTitle: { fontWeight: '800', color: '#374151', marginBottom: 10 },
   input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, marginBottom: 10 },
   primaryBtn: { backgroundColor: '#2563eb', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 2 },

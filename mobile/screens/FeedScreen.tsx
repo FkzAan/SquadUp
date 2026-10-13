@@ -6,6 +6,7 @@ import { fetchMyJoinedLobbies, joinLobby } from '../services/lobbyService';
 import Sidebar from '../components/Sidebar';
 import LobbyMap from '../components/LobbyMap';
 import type { Lobby } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import { formatSchedule, isOver } from '../utils/lobby';
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile }: Props) {
+    const { t, language } = useLanguage();
     const { lobbies, loading, refresh } = useLobbies();
     const [menuOpen, setMenuOpen] = useState(false);
     const [view, setView] = useState<'list' | 'map'>('list');
@@ -32,7 +34,7 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
 
     async function onJoin(id: string) {
         const err = await joinLobby(id);
-        if (err) Alert.alert('Tak dapat join', err);
+        if (err) Alert.alert(t('cannotJoin'), err);
         else onOpenLobby(id);
     }
 
@@ -44,15 +46,15 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
             <View style={s.card}>
                 <Text style={s.activity}>{item.activity_type} · {item.skill_level}</Text>
                 <Text style={s.location}>{item.location_name}</Text>
-                <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at)}</Text>
+                <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at, language)}</Text>
                 {item.latitude != null && item.longitude != null && (
                     <Text style={s.coords}>{item.latitude.toFixed(5)}, {item.longitude.toFixed(5)}</Text>
                 )}
-                <Text style={s.players}>{item.current_players}/{item.max_players} pemain</Text>
+                <Text style={s.players}>{item.current_players}/{item.max_players} {t('players')}</Text>
 
                 {joined ? (
                     <TouchableOpacity style={s.viewBtn} onPress={() => onOpenLobby(item.id)}>
-                        <Text style={s.viewText}>Sudah join · Lihat detail</Text>
+                        <Text style={s.viewText}>{t('alreadyJoined')}</Text>
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
@@ -60,7 +62,7 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
                         disabled={unavailable}
                         onPress={() => onJoin(item.id)}
                     >
-                        <Text style={s.joinText}>{over ? 'Sudah tamat' : item.status === 'full' ? 'Penuh' : 'Join'}</Text>
+                        <Text style={s.joinText}>{over ? t('alreadyEnded') : item.status === 'full' ? t('full') : t('join')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -73,15 +75,15 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
                 <TouchableOpacity style={s.menuBtn} onPress={() => setMenuOpen(true)} activeOpacity={0.7}>
                     <Ionicons name="menu" size={26} color="#111827" />
                 </TouchableOpacity>
-                <Text style={s.title}>Squad Berdekatan</Text>
+                <Text style={s.title}>{t('nearbySquads')}</Text>
             </View>
 
             <View style={s.tabs}>
                 <TouchableOpacity style={[s.tab, view === 'list' && s.tabActive]} onPress={() => setView('list')}>
-                    <Text style={[s.tabText, view === 'list' && s.tabTextActive]}>Senarai</Text>
+                    <Text style={[s.tabText, view === 'list' && s.tabTextActive]}>{t('list')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.tab, view === 'map' && s.tabActive]} onPress={() => setView('map')}>
-                    <Text style={[s.tabText, view === 'map' && s.tabTextActive]}>Peta</Text>
+                    <Text style={[s.tabText, view === 'map' && s.tabTextActive]}>{t('map')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -90,13 +92,13 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
                     data={lobbies}
                     keyExtractor={(l) => l.id}
                     refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
-                    ListEmptyComponent={<Text style={s.empty}>Belum ada squad aktif. Jadilah yang pertama!</Text>}
+                    ListEmptyComponent={<Text style={s.empty}>{t('noActiveSquads')}</Text>}
                     renderItem={({ item }) => renderCard(item)}
                 />
             ) : (
                 <View style={{ flex: 1 }}>
                     {unmapped > 0 && (
-                        <Text style={s.note}>{unmapped} squad tiada lokasi peta (dicipta sebelum ciri pin).</Text>
+                        <Text style={s.note}>{t('noMapLocation', { count: unmapped })}</Text>
                     )}
                     <View style={s.mapBox}>
                         <LobbyMap lobbies={lobbies} onSelect={setSelectedId} />

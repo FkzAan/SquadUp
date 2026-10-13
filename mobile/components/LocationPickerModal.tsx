@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../context/LanguageContext';
 import * as Location from 'expo-location';
 
 export type Coords = { latitude: number; longitude: number };
@@ -73,6 +74,7 @@ const HTML = `<!DOCTYPE html>
 </html>`;
 
 export default function LocationPickerModal({ visible, initial, onConfirm, onClose }: Props) {
+    const { t } = useLanguage();
     const ref = useRef<WebView>(null);
     const [ready, setReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -88,12 +90,14 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
     }, [visible]);
 
     useEffect(() => {
-        if (!visible || ready) return;
-        const t = setTimeout(() => {
-            setError((prev) => prev ?? 'Peta lambat dimuatkan. Semak sambungan internet anda.');
-        }, 12000);
-        return () => clearTimeout(t);
-    }, [visible, ready]);
+    if (!visible || ready) return;
+
+    const timeoutId = setTimeout(() => {
+        setError((prev) => prev ?? t('mapSlow'));
+    }, 12000);
+
+    return () => clearTimeout(timeoutId);
+}, [visible, ready, t]);
 
     // peta dah sedia: letak pin sedia ada, atau pusatkan pada pengguna
     useEffect(() => {
@@ -125,7 +129,7 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
             } else if (msg.type === 'pick') {
                 setPicked({ latitude: msg.lat, longitude: msg.lng });
             } else if (msg.type === 'error') {
-                setError(msg.msg);
+                setError(msg.msg.includes('Leaflet') ? t('mapLibraryError') : msg.msg);
             }
         } catch {
             // abaikan
@@ -136,7 +140,7 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Kebenaran diperlukan', 'Benarkan akses lokasi untuk guna ciri ini.');
+                Alert.alert(t('locationPermissionTitle'), t('locationPermissionMessage'));
                 return;
             }
             const pos = await Location.getCurrentPositionAsync({});
@@ -144,13 +148,13 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
             setPicked(c);
             ref.current?.injectJavaScript(`window.setPin(${c.latitude}, ${c.longitude}); true;`);
         } catch {
-            Alert.alert('Ralat', 'Tak dapat mengesan lokasi anda.');
+            Alert.alert(t('error'), t('locationFailed'));
         }
     }
 
     function confirm() {
         if (!picked) {
-            Alert.alert('Belum ada pin', 'Ketuk peta untuk letak pin dahulu.');
+            Alert.alert(t('noPinTitle'), t('noPinMessage'));
             return;
         }
         onConfirm(picked);
@@ -163,7 +167,7 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
                     <TouchableOpacity style={s.closeBtn} onPress={onClose} activeOpacity={0.7}>
                         <Ionicons name="close" size={24} color="#111827" />
                     </TouchableOpacity>
-                    <Text style={s.title}>Pilih lokasi tepat</Text>
+                    <Text style={s.title}>{t('pinSelectTitle')}</Text>
                 </View>
 
                 <View style={s.mapWrap}>
@@ -177,12 +181,12 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
                         mixedContentMode="always"
                         androidLayerType="hardware"
                         onMessage={onMessage}
-                        onError={() => setError('Peta tak dapat dimuatkan. Semak sambungan internet anda.')}
+                        onError={() => setError(t('mapUnavailable'))}
                     />
                     {!ready && !error && (
                         <View style={s.overlay} pointerEvents="none">
                             <ActivityIndicator size="large" color="#2563eb" />
-                            <Text style={s.overlayText}>Memuatkan peta...</Text>
+                            <Text style={s.overlayText}>{t('mapLoading')}</Text>
                         </View>
                     )}
                     {!ready && error && (
@@ -196,19 +200,19 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
                     <Text style={s.coords}>
                         {picked
                             ? `${picked.latitude.toFixed(5)}, ${picked.longitude.toFixed(5)}`
-                            : 'Ketuk peta untuk letak pin. Seret pin untuk laraskan.'}
+                            : t('tapToPin')}
                     </Text>
                     <View style={s.row}>
                         <TouchableOpacity style={s.gpsBtn} onPress={useMyLocation} activeOpacity={0.7}>
                             <Ionicons name="locate" size={18} color="#2563eb" />
-                            <Text style={s.gpsText}>Lokasi saya</Text>
+                            <Text style={s.gpsText}>{t('myLocation')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[s.confirmBtn, !picked && s.confirmDisabled]}
                             onPress={confirm}
                             activeOpacity={0.8}
                         >
-                            <Text style={s.confirmText}>Sahkan lokasi</Text>
+                            <Text style={s.confirmText}>{t('confirmLocation')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
