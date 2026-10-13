@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
 import type { Lobby } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
     lobbies: Lobby[];
@@ -93,6 +94,7 @@ const HTML = `<!DOCTYPE html>
 </html>`;
 
 export default function LobbyMap({ lobbies, onSelect }: Props) {
+    const { t } = useLanguage();
     const ref = useRef<WebView>(null);
     const [ready, setReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function LobbyMap({ lobbies, onSelect }: Props) {
     useEffect(() => {
         if (ready) return;
         const t = setTimeout(() => {
-            setError((prev) => prev ?? 'Peta lambat dimuatkan. Semak sambungan internet anda.');
+            setError((prev) => prev ?? t('mapSlow'));
         }, 12000);
         return () => clearTimeout(t);
     }, [ready]);
@@ -139,7 +141,7 @@ export default function LobbyMap({ lobbies, onSelect }: Props) {
             } else if (msg.type === 'select') {
                 onSelect(msg.id);
             } else if (msg.type === 'error') {
-                setError(msg.msg);
+                setError(msg.msg.includes('Leaflet') ? t('mapLibraryError') : msg.msg);
             }
         } catch {
             // abaikan
@@ -158,12 +160,12 @@ export default function LobbyMap({ lobbies, onSelect }: Props) {
                 mixedContentMode="always"
                 androidLayerType="hardware"
                 onMessage={onMessage}
-                onError={() => setError('Peta tak dapat dimuatkan. Semak sambungan internet anda.')}
+                onError={() => setError(t('mapUnavailable'))}
             />
             {!ready && !error && (
                 <View style={s.overlay} pointerEvents="none">
                     <ActivityIndicator size="large" color="#2563eb" />
-                    <Text style={s.overlayText}>Memuatkan peta...</Text>
+                    <Text style={s.overlayText}>{t('mapLoading')}</Text>
                 </View>
             )}
             {!ready && error && (

@@ -5,6 +5,7 @@ import { getCurrentUserId } from '../services/authService';
 import { fetchMyJoinedLobbies, subscribeToLobbies } from '../services/lobbyService';
 import { formatSchedule, formatTime, isEnded, statusLabel } from '../utils/lobby';
 import type { JoinedLobby } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
     onBack: () => void;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
+    const { t, language } = useLanguage();
     const [items, setItems] = useState<JoinedLobby[]>([]);
     const [loading, setLoading] = useState(true);
     const [myId, setMyId] = useState<string | null>(null);
@@ -28,8 +30,8 @@ export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
     }, [load]);
 
     const sections = [
-        { title: 'Aktif', data: items.filter((l) => !isEnded(l)) },
-        { title: 'Sejarah', data: items.filter((l) => isEnded(l)) },
+        { title: t('active'), data: items.filter((l) => !isEnded(l)) },
+        { title: t('history'), data: items.filter((l) => isEnded(l)) },
     ].filter((sec) => sec.data.length > 0);
 
     return (
@@ -38,7 +40,7 @@ export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
                 <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                 </TouchableOpacity>
-                <Text style={s.title}>Lobby Saya</Text>
+                <Text style={s.title}>{t('myLobbies')}</Text>
             </View>
 
             <SectionList
@@ -48,12 +50,12 @@ export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
                 contentContainerStyle={{ paddingBottom: 40 }}
                 ListEmptyComponent={
                     !loading ? (
-                        <Text style={s.empty}>Kamu belum join sebarang squad. Cari squad di halaman utama!</Text>
+                        <Text style={s.empty}>{t('noJoined')}</Text>
                     ) : null
                 }
                 renderSectionHeader={({ section }) => <Text style={s.section}>{section.title}</Text>}
                 renderItem={({ item }) => {
-                    const st = statusLabel(item);
+                    const st = statusLabel(item, language);
                     const ended = isEnded(item);
                     return (
                         <TouchableOpacity
@@ -68,12 +70,12 @@ export default function MyLobbiesScreen({ onBack, onOpen }: Props) {
                                 </View>
                             </View>
                             <Text style={s.location}>{item.location_name}</Text>
-                            <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at)}</Text>
+                            <Text style={s.schedule}>{formatSchedule(item.starts_at, item.ends_at, language)}</Text>
                             <View style={s.metaRow}>
-                                <Text style={s.meta}>{item.current_players}/{item.max_players} pemain</Text>
+                                <Text style={s.meta}>{item.current_players}/{item.max_players} {t('players')}</Text>
                                 {item.host_id === myId && <Text style={s.hostTag}>Host</Text>}
                             </View>
-                            <Text style={s.meta}>Join: {formatTime(item.joined_at)}</Text>
+                            <Text style={s.meta}>{t('joinedAt', { time: formatTime(item.joined_at) })}</Text>
                         </TouchableOpacity>
                     );
                 }}

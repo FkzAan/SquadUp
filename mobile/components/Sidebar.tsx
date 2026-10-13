@@ -6,6 +6,7 @@ import { deleteLobby, fetchMyLobbies } from '../services/lobbyService';
 import { fetchMyProfile } from '../services/profileService';
 import { signOut } from '../services/authService';
 import type { Lobby, Profile } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 type Props = {
   visible: boolean;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfile }: Props) {
+  const { t } = useLanguage();
   const width = Math.min(Dimensions.get('window').width * 0.8, 320);
   const slide = useRef(new Animated.Value(-width)).current;
   const [mounted, setMounted] = useState(visible);
@@ -44,14 +46,14 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
   }, [visible]);
 
   function confirmDelete(lobby: Lobby) {
-    Alert.alert('Padam squad?', `${lobby.activity_type} di ${lobby.location_name} akan dipadam untuk semua pemain.`, [
-      { text: 'Batal', style: 'cancel' },
+    Alert.alert(t('deleteTitle'), t('deleteHostedMessage', { activity: lobby.activity_type, location: lobby.location_name }), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Padam',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           const err = await deleteLobby(lobby.id);
-          if (err) Alert.alert('Ralat', err);
+          if (err) Alert.alert(t('error'), err);
           else load();
         },
       },
@@ -59,9 +61,9 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
   }
 
   function confirmLogout() {
-    Alert.alert('Log keluar', 'Anda pasti mahu log keluar?', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Log keluar', style: 'destructive', onPress: () => signOut() },
+    Alert.alert(t('logout'), t('logoutMessage'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('logout'), style: 'destructive', onPress: () => signOut() },
     ]);
   }
 
@@ -82,9 +84,9 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
           >
             <Avatar uri={profile?.avatar_url} name={profile?.name ?? '?'} size={52} />
             <View style={{ flex: 1 }}>
-              <Text style={s.profileName} numberOfLines={1}>{profile?.name ?? 'Memuatkan...'}</Text>
+              <Text style={s.profileName} numberOfLines={1}>{profile?.name ?? t('loading')}</Text>
               <Text style={s.profileEmail} numberOfLines={1}>{profile?.email ?? ''}</Text>
-              <Text style={s.profileEdit}>Edit profil</Text>
+              <Text style={s.profileEdit}>{t('editProfile')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
           </TouchableOpacity>
@@ -98,7 +100,7 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
             }}
           >
             <Ionicons name="add-circle-outline" size={20} color="#fff" />
-            <Text style={s.createText}>Cipta Squad</Text>
+            <Text style={s.createText}>{t('createSquad')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -110,23 +112,23 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
             }}
           >
             <Ionicons name="people-outline" size={20} color="#2563eb" />
-            <Text style={s.navText}>Lobby Saya</Text>
+            <Text style={s.navText}>{t('myLobbies')}</Text>
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
 
-          <Text style={s.section}>Dihost oleh saya</Text>
+          <Text style={s.section}>{t('hostedByMe')}</Text>
 
           <ScrollView style={{ flex: 1 }}>
-            {loading && mine.length === 0 && <Text style={s.empty}>Memuatkan...</Text>}
+            {loading && mine.length === 0 && <Text style={s.empty}>{t('loading')}</Text>}
             {!loading && mine.length === 0 && (
-              <Text style={s.empty}>Kamu belum cipta sebarang squad aktif.</Text>
+              <Text style={s.empty}>{t('noHosted')}</Text>
             )}
             {mine.map((l) => (
               <View key={l.id} style={s.item}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.itemTitle}>{l.activity_type} · {l.skill_level}</Text>
                   <Text style={s.itemSub}>{l.location_name}</Text>
-                  <Text style={s.itemSub}>{l.current_players}/{l.max_players} pemain</Text>
+                  <Text style={s.itemSub}>{l.current_players}/{l.max_players} {t('players')}</Text>
                 </View>
                 <TouchableOpacity style={s.deleteBtn} onPress={() => confirmDelete(l)} activeOpacity={0.7}>
                   <Ionicons name="trash-outline" size={20} color="#dc2626" />
@@ -137,7 +139,7 @@ export default function Sidebar({ visible, onClose, onHost, onMyLobbies, onProfi
 
           <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.7}>
             <Ionicons name="log-out-outline" size={18} color="#dc2626" />
-            <Text style={s.logoutText}>Log keluar</Text>
+            <Text style={s.logoutText}>{t('logout')}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
