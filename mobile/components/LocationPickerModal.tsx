@@ -90,12 +90,14 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
     }, [visible]);
 
     useEffect(() => {
-        if (!visible || ready) return;
-        const t = setTimeout(() => {
-            setError((prev) => prev ?? t('mapSlow'));
-        }, 12000);
-        return () => clearTimeout(t);
-    }, [visible, ready]);
+    if (!visible || ready) return;
+
+    const timeoutId = setTimeout(() => {
+        setError((prev) => prev ?? t('mapSlow'));
+    }, 12000);
+
+    return () => clearTimeout(timeoutId);
+}, [visible, ready, t]);
 
     // peta dah sedia: letak pin sedia ada, atau pusatkan pada pengguna
     useEffect(() => {

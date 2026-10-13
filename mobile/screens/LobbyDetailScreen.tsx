@@ -29,9 +29,14 @@ import { useLanguage } from '../context/LanguageContext';
 type Props = {
   lobbyId: string;
   onBack: () => void;
+  onOpenChat: (title: string) => void;
 };
 
-export default function LobbyDetailScreen({ lobbyId, onBack }: Props) {
+export default function LobbyDetailScreen({
+  lobbyId,
+  onBack,
+  onOpenChat,
+}: Props) {
   const { t, language } = useLanguage();
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [members, setMembers] = useState<LobbyMember[]>([]);
@@ -252,6 +257,13 @@ export default function LobbyDetailScreen({ lobbyId, onBack }: Props) {
         ))}
       </View>
 
+      {(isHost || isMember) && (
+        <TouchableOpacity style={s.chatBtn} onPress={() => onOpenChat(lobby.activity_type)} activeOpacity={0.8}>
+          <Ionicons name="chatbubbles-outline" size={18} color="#fff" />
+          <Text style={s.chatText}>Buka Chat Squad</Text>
+        </TouchableOpacity>
+      )}
+
       {!ended && isHost && (
         <TouchableOpacity style={s.dangerBtn} onPress={confirmDelete} disabled={busy} activeOpacity={0.8}>
           <Ionicons name="trash-outline" size={18} color="#dc2626" />
@@ -272,6 +284,18 @@ export default function LobbyDetailScreen({ lobbyId, onBack }: Props) {
 }
 
 const s = StyleSheet.create({
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  chatText: { color: '#fff', fontWeight: '800' },
   container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: 60 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 12 },
   backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },

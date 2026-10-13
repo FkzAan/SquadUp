@@ -101,12 +101,14 @@ export default function LobbyMap({ lobbies, onSelect }: Props) {
 
     // kalau peta tak siap dalam 12 saat, tunjuk mesej
     useEffect(() => {
-        if (ready) return;
-        const t = setTimeout(() => {
-            setError((prev) => prev ?? t('mapSlow'));
-        }, 12000);
-        return () => clearTimeout(t);
-    }, [ready]);
+    if (ready) return;
+
+    const timeoutId = setTimeout(() => {
+        setError((prev) => prev ?? t('mapSlow'));
+    }, 12000);
+
+    return () => clearTimeout(timeoutId);
+}, [ready, t]);
 
     // hantar lobby (yang ada koordinat) ke peta
     useEffect(() => {
