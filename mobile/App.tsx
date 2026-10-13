@@ -8,13 +8,15 @@ import HostLobbyScreen from './screens/HostLobbyScreen';
 import MyLobbiesScreen from './screens/MyLobbiesScreen';
 import LobbyDetailScreen from './screens/LobbyDetailScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import LobbyChatScreen from './screens/LobbyChatScreen';
 
 type Screen =
   | { name: 'feed' }
   | { name: 'host' }
   | { name: 'myLobbies' }
   | { name: 'profile' }
-  | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' };
+  | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' }
+  | { name: 'chat'; lobbyId: string; title: string; from: 'feed' | 'myLobbies' };
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -45,6 +47,8 @@ export default function App() {
       if (screen.name === 'feed') return false;
       if (screen.name === 'detail') {
         backFromDetail(screen.from);
+      } else if (screen.name === 'chat') {
+        setScreen({ name: 'detail', lobbyId: screen.lobbyId, from: screen.from });
       } else {
         setScreen({ name: 'feed' });
       }
@@ -80,6 +84,17 @@ export default function App() {
         <LobbyDetailScreen
           lobbyId={screen.lobbyId}
           onBack={() => backFromDetail(screen.from)}
+          onOpenChat={(title) =>
+            setScreen({ name: 'chat', lobbyId: screen.lobbyId, title, from: screen.from })
+          }
+        />
+      );
+    case 'chat':
+      return (
+        <LobbyChatScreen
+          lobbyId={screen.lobbyId}
+          title={screen.title}
+          onBack={() => setScreen({ name: 'detail', lobbyId: screen.lobbyId, from: screen.from })}
         />
       );
     default:
