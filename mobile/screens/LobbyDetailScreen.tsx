@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import Avatar from '../components/Avatar';
 import { getCurrentUserId } from '../services/authService';
 import {
   deleteLobby,
@@ -60,7 +61,7 @@ export default function LobbyDetailScreen({ lobbyId, onBack }: Props) {
       // sandaran: buka helaian kongsi supaya pengguna boleh salin dari situ
       try {
         await Share.share({ message: text });
-      } catch (e) {
+      } catch {
         Alert.alert('Tak dapat menyalin', `Koordinat: ${text}`);
       }
     }
@@ -236,9 +237,7 @@ export default function LobbyDetailScreen({ lobbyId, onBack }: Props) {
 
         {members.map((m) => (
           <View key={m.user_id} style={s.member}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{m.name.charAt(0).toUpperCase()}</Text>
-            </View>
+            <Avatar uri={m.avatar_url} name={m.name} size={38} />
             <View style={{ flex: 1 }}>
               <Text style={s.memberName}>
                 {m.name}
@@ -324,8 +323,6 @@ const s = StyleSheet.create({
   barBg: { height: 8, backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 12, overflow: 'hidden' },
   barFill: { height: 8, backgroundColor: '#2563eb', borderRadius: 4 },
   member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#1d4ed8', fontWeight: '800', fontSize: 16 },
   memberName: { fontWeight: '700', color: '#111827' },
   hostTag: { backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: '700', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
   dangerBtn: {

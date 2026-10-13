@@ -12,9 +12,10 @@ type Props = {
     onHost: () => void;
     onMyLobbies: () => void;
     onOpenLobby: (id: string) => void;
+    onProfile: () => void;
 };
 
-export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby }: Props) {
+export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile }: Props) {
     const { lobbies, loading, refresh } = useLobbies();
     const [menuOpen, setMenuOpen] = useState(false);
     const [view, setView] = useState<'list' | 'map'>('list');
@@ -121,6 +122,7 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby }: Props) 
                 onClose={() => setMenuOpen(false)}
                 onHost={onHost}
                 onMyLobbies={onMyLobbies}
+                onProfile={onProfile}
             />
         </View>
     );

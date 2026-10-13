@@ -32,6 +32,7 @@ export type JoinedLobby = Lobby & { joined_at: string };
 export type LobbyMember = {
     user_id: string;
     name: string;
+    avatar_url: string | null;
     joined_at: string;
     is_host: boolean;
 };
@@ -46,4 +47,11 @@ export type NewLobbyInput = {
     starts_at: string;
     ends_at: string;
     skill_level: SkillLevel;
+};
+
+export type Profile = {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
 };

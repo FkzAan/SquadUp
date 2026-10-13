@@ -7,11 +7,13 @@ import FeedScreen from './screens/FeedScreen';
 import HostLobbyScreen from './screens/HostLobbyScreen';
 import MyLobbiesScreen from './screens/MyLobbiesScreen';
 import LobbyDetailScreen from './screens/LobbyDetailScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 type Screen =
   | { name: 'feed' }
   | { name: 'host' }
   | { name: 'myLobbies' }
+  | { name: 'profile' }
   | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' };
 
 export default function App() {
@@ -19,7 +21,6 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [screen, setScreen] = useState<Screen>({ name: 'feed' });
 
-  // kembali dari skrin butiran ke skrin asal
   function backFromDetail(from: 'feed' | 'myLobbies') {
     if (from === 'myLobbies') setScreen({ name: 'myLobbies' });
     else setScreen({ name: 'feed' });
@@ -41,7 +42,7 @@ export default function App() {
   // butang back Android
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (screen.name === 'feed') return false; // biar app keluar
+      if (screen.name === 'feed') return false;
       if (screen.name === 'detail') {
         backFromDetail(screen.from);
       } else {
@@ -65,6 +66,8 @@ export default function App() {
   switch (screen.name) {
     case 'host':
       return <HostLobbyScreen onDone={() => setScreen({ name: 'feed' })} />;
+    case 'profile':
+      return <ProfileScreen onBack={() => setScreen({ name: 'feed' })} />;
     case 'myLobbies':
       return (
         <MyLobbiesScreen
@@ -84,6 +87,7 @@ export default function App() {
         <FeedScreen
           onHost={() => setScreen({ name: 'host' })}
           onMyLobbies={() => setScreen({ name: 'myLobbies' })}
+          onProfile={() => setScreen({ name: 'profile' })}
           onOpenLobby={(id) => setScreen({ name: 'detail', lobbyId: id, from: 'feed' })}
         />
       );

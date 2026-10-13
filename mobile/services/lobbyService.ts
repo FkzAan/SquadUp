@@ -61,22 +61,23 @@ export async function fetchLobbyById(id: string): Promise<Lobby | null> {
 }
 
 export async function fetchLobbyMembers(lobby: Lobby): Promise<LobbyMember[]> {
-    const { data, error } = await supabase
-        .from('squad_members')
-        .select('user_id, joined_at, users(name)')
-        .eq('squad_id', lobby.id)
-        .order('joined_at', { ascending: true });
-    if (error || !data) return [];
+  const { data, error } = await supabase
+    .from('squad_members')
+    .select('user_id, joined_at, users(name, avatar_url)')
+    .eq('squad_id', lobby.id)
+    .order('joined_at', { ascending: true });
+  if (error || !data) return [];
 
-    return (data as any[]).map((row) => {
-        const u = Array.isArray(row.users) ? row.users[0] : row.users;
-        return {
-            user_id: row.user_id as string,
-            name: (u?.name as string) ?? 'Pemain',
-            joined_at: row.joined_at as string,
-            is_host: row.user_id === lobby.host_id,
-        };
-    });
+  return (data as any[]).map((row) => {
+    const u = Array.isArray(row.users) ? row.users[0] : row.users;
+    return {
+      user_id: row.user_id as string,
+      name: (u?.name as string) ?? 'Pemain',
+      avatar_url: (u?.avatar_url as string | null) ?? null,
+      joined_at: row.joined_at as string,
+      is_host: row.user_id === lobby.host_id,
+    };
+  });
 }
 
 // ---------- Tulis ----------
