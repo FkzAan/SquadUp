@@ -1,11 +1,14 @@
 import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '../../mobile/context/AuthContext';
+import { LanguageProvider } from '../../mobile/context/LanguageContext';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Navigation />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <Navigation />
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
