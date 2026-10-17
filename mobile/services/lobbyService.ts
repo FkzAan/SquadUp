@@ -129,6 +129,30 @@ export async function leaveLobby(squadId: string): Promise<string | null> {
     return null;
 }
 
+export async function kickMember(squadId: string, userId: string): Promise<string | null> {
+    const { error } = await supabase.rpc('kick_squad_member', { p_squad_id: squadId, p_user_id: userId });
+    if (error) {
+        if (error.code === 'PGRST202') return 'Jalankan migration 009_kick_members.sql di Supabase dahulu.';
+        return error.message;
+    }
+    return null;
+}
+
+// true/false = pasti; null = tak dapat dipastikan (ralat rangkaian)
+export async function isMemberOf(squadId: string): Promise<boolean | null> {
+    const userId = await getCurrentUserId();
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+        .from('squad_members')
+        .select('user_id')
+        .eq('squad_id', squadId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    if (error) return null;
+    return Boolean(data);
+}
+
 export async function deleteLobby(id: string): Promise<string | null> {
     const userId = await getCurrentUserId();
     if (!userId) return 'Sila log masuk semula.';
