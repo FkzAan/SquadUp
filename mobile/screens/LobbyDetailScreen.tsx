@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,8 @@ import {
   deleteLobby,
   fetchLobbyById,
   fetchLobbyMembers,
+  isMemberOf,
+  kickMember,
   leaveLobby,
   subscribeToLobbyDetail,
 } from '../services/lobbyService';
@@ -44,6 +46,10 @@ export default function LobbyDetailScreen({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [kickingId, setKickingId] = useState<string | null>(null);
+  const wasMemberRef = useRef(false);
+  const leavingRef = useRef(false);
+  const kickedShownRef = useRef(false);
 
   const load = useCallback(async () => {
     const l = await fetchLobbyById(lobbyId);
@@ -57,6 +63,28 @@ export default function LobbyDetailScreen({
     load();
     return subscribeToLobbyDetail(lobbyId, load);
   }, [load, lobbyId]);
+
+  // Kalau saya pernah ahli squad ini tetapi tiba-tiba tiada dalam senarai, mungkin host
+  // mengeluarkan saya. Sahkan terus dengan pangkalan data dahulu supaya ralat rangkaian
+  // sementara (senarai kosong) tak disalah anggap sebagai dikeluarkan.
+  useEffect(() => {
+    if (!myId || !lobby || loading) return;
+    if (members.some((m) => m.user_id === myId)) {
+      wasMemberRef.current = true;
+      return;
+    }
+    if (!wasMemberRef.current || leavingRef.current || kickedShownRef.current || isEnded(lobby)) return;
+
+    let active = true;
+    isMemberOf(lobbyId).then((still) => {
+      if (!active || still !== false || kickedShownRef.current) return;
+      kickedShownRef.current = true;
+      Alert.alert(t('kickedTitle'), t('kickedNotice'), [{ text: 'OK', onPress: onBack }], { cancelable: false });
+    });
+    return () => {
+      active = false;
+    };
+  }, [members, myId, lobby, loading]);
 
   async function copyCoords(lat: number, lng: number) {
     const text = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -99,10 +127,30 @@ export default function LobbyDetailScreen({
         style: 'destructive',
         onPress: async () => {
           setBusy(true);
+          leavingRef.current = true; // elak mesej "dikeluarkan" apabila saya sendiri yang keluar
           const err = await leaveLobby(lobbyId);
           setBusy(false);
+          if (err) {
+            leavingRef.current = false;
+            Alert.alert(t('error'), err);
+          } else onBack();
+        },
+      },
+    ]);
+  }
+
+  function confirmKick(member: LobbyMember) {
+    Alert.alert(t('kickTitle', { name: member.name }), t('kickMessage', { name: member.name }), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('kick'),
+        style: 'destructive',
+        onPress: async () => {
+          setKickingId(member.user_id);
+          const err = await kickMember(lobbyId, member.user_id);
+          setKickingId(null);
           if (err) Alert.alert(t('error'), err);
-          else onBack();
+          else load();
         },
       },
     ]);
@@ -253,6 +301,20 @@ export default function LobbyDetailScreen({
               <Text style={s.sub}>{t('joinedAt', { time: formatTime(m.joined_at) })}</Text>
             </View>
             {m.is_host && <Text style={s.hostTag}>Host</Text>}
+                        {isHost && !ended && !m.is_host && (
+              <TouchableOpacity
+                style={s.kickBtn}
+                onPress={() => confirmKick(m)}
+                disabled={kickingId !== null}
+                activeOpacity={0.7}
+              >
+                {kickingId === m.user_id ? (
+                  <ActivityIndicator size="small" color="#dc2626" />
+                ) : (
+                  <Text style={s.kickText}>{t('kick')}</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         ))}
       </View>
@@ -351,6 +413,8 @@ const s = StyleSheet.create({
   member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   memberName: { fontWeight: '700', color: '#111827' },
   hostTag: { backgroundColor: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: '700', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
+    kickBtn: { minWidth: 76, height: 34, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 17 },
+  kickText: { color: '#dc2626', fontWeight: '800', fontSize: 12 },
   dangerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
