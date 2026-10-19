@@ -56,10 +56,12 @@ export default function LobbyChatScreen({ lobbyId, title, onBack }: Props) {
   async function onSend() {
     if (!text.trim() || sending) return;
     setSending(true);
-    const err = await sendMessage(lobbyId, text);
+    const res = await sendMessage(lobbyId, text);
     setSending(false);
-    if (err) Alert.alert('Ralat', err);
-    else setText('');
+    if (res.ok) setText('');
+    else if (res.blocked) {
+      Alert.alert('🛡️ Mesej disekat', `${res.reason}\n\nSquadUp menyemak setiap mesej supaya chat kekal selamat untuk semua.`);
+    } else Alert.alert('Ralat', res.error);
   }
 
   function renderItem({ item }: { item: ChatMessage }) {
@@ -123,7 +125,11 @@ export default function LobbyChatScreen({ lobbyId, title, onBack }: Props) {
           disabled={!text.trim() || sending}
           activeOpacity={0.8}
         >
-          <Ionicons name="send" size={20} color="#fff" />
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="send" size={20} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
