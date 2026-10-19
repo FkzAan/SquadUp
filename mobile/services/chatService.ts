@@ -1,5 +1,4 @@
 import { supabase } from './supabaseClient';
-import { fetchMyProfile } from './profileService';
 import type { ChatMessage } from '../types';
 
 // Table: squad_messages (id, squad_id, sender_id, sender_name, message, created_at)
@@ -46,25 +45,28 @@ export async function fetchMessages(squadId: string): Promise<ChatMessage[]> {
 
 // ---------- Tulis ----------
 
-export async function sendMessage(squadId: string, content: string): Promise<string | null> {
-    const me = await fetchMyProfile();
-    if (!me) return 'Sila log masuk semula.';
+export type SendResult =
+    | { ok: true }
+    | { ok: false; blocked: true; reason: string }
+    | { ok: false; blocked: false; error: string };
 
+// Mesej dihantar melalui Edge Function `moderate-message`:
+// AI Chat Safety Guard semak dulu, kalau selamat baru disimpan.
+export async function sendMessage(squadId: string, content: string): Promise<SendResult> {
     const text = content.trim();
-    if (!text) return null;
-    if (text.length > 500) return 'Mesej terlalu panjang (maks 500 aksara).';
+    if (!text) return { ok: true };
+    if (text.length > 500) return { ok: false, blocked: false, error: 'Mesej terlalu panjang (maks 500 aksara).' };
 
-    const { error } = await supabase.from('squad_messages').insert({
-        squad_id: squadId,
-        sender_id: me.id,
-        sender_name: me.name,
-        message: text,
+    const { data, error } = await supabase.functions.invoke('moderate-message', {
+        body: { squad_id: squadId, message: text },
     });
-    if (error) {
-        if (error.code === '42501') return 'Hanya ahli squad boleh hantar mesej.';
-        return error.message;
+
+    if (error || !data) {
+        return { ok: false, blocked: false, error: 'Tak dapat hantar mesej. Cuba lagi.' };
     }
-    return null;
+    if (data.ok) return { ok: true };
+    if (data.blocked) return { ok: false, blocked: true, reason: data.reason_ms as string };
+    return { ok: false, blocked: false, error: (data.error as string) ?? 'Tak dapat hantar mesej.' };
 }
 
 // ---------- Real-time ----------
