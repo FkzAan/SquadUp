@@ -31,10 +31,9 @@ export default function LanguageSelector({ expanded = false }: Props) {
 }
 
 const s = StyleSheet.create({
-  group: { flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: '#e5e7eb', borderRadius: 10, padding: 3 },
-  option: { paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', borderRadius: 8 },
-  expanded: { flex: 1 },
-  selected: { backgroundColor: '#fff', elevation: 1 },
-  label: { color: '#6b7280', fontWeight: '700', fontSize: 13 },
-  selectedLabel: { color: '#2563eb' },
+  group: { flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: '#E5EFFB', borderRadius: 13, padding: 4, borderWidth: 1, borderColor: '#D9E7F7' },
+  option: { paddingVertical: 9, paddingHorizontal: 15, alignItems: 'center', borderRadius: 10 },
+  expanded: { flex: 1 }, selected: { backgroundColor: '#fff', elevation: 1 },
+  label: { color: '#6E7E98', fontWeight: '800', fontSize: 13 },
+  selectedLabel: { color: '#0768F9' },
 });
