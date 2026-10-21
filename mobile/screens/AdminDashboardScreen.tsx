@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable,
   RefreshControl, ScrollView, StyleSheet, Text, TextInput, View
 } from 'react-native';
 import type { ReactNode } from 'react';
@@ -10,18 +10,25 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useAuth } from '../context/AuthContext';
 import AccessState from '../components/AccessState';
+import CommunityInsights from '../components/CommunityInsights';
+import AdminActivityMap from '../components/AdminActivityMap';
 import { supabase } from '../services/supabaseClient';
 import { createAdminDashboardService } from '../services/adminDashboardService';
 import type { AdminActivity, AdminLobby, AdminPlayer, AdminSnapshot, FacilityInput } from '../services/adminDashboardService';
 import type { Facility } from '../types';
 import { adminCsv } from '../utils/adminCsv';
+import { buildCommunityInsights, communityInsightsRows } from '../utils/communityInsights';
+import { activityMapRows, buildActivityMap, defaultMapFilters } from '../utils/adminActivityMap';
+import type { ActivityMapFilters } from '../utils/adminActivityMap';
 
 const api = createAdminDashboardService(supabase);
-type Page = 'overview' | 'lobbies' | 'players' | 'facilities' | 'activity';
+type Page = 'overview' | 'insights' | 'map' | 'lobbies' | 'players' | 'facilities' | 'activity';
 type Filter = 'all' | 'open' | 'full' | 'ended' | 'cancelled' | 'expired';
 type IconName = keyof typeof Ionicons.glyphMap;
 const pages: { key: Page; label: string; icon: IconName }[] = [
   { key: 'overview', label: 'Overview', icon: 'grid-outline' },
+  { key: 'map', label: 'Activity map', icon: 'map-outline' },
+  { key: 'insights', label: 'Insights', icon: 'stats-chart-outline' },
   { key: 'lobbies', label: 'Squads', icon: 'basketball-outline' },
   { key: 'players', label: 'Players', icon: 'people-outline' },
   { key: 'facilities', label: 'Facilities', icon: 'location-outline' },
@@ -102,6 +109,8 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
   const [updated, setUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [mapFilters, setMapFilters] = useState<ActivityMapFilters>(() => defaultMapFilters(Date.now()));
+  const [mapNow, setMapNow] = useState(() => Date.now());
   const [editor, setEditor] = useState<FacilityInput | null>(null);
   const alive = useRef(false); const request = useRef(0); const fetching = useRef(false); const mutation = useRef(false); const sharing = useRef(false);
 
@@ -112,7 +121,7 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     setRefreshing(true); setError('');
     try {
       const next = await api.snapshot();
-      if (alive.current && request.current === current) { setSnapshot(next); setUpdated(new Date()); }
+      if (alive.current && request.current === current) { const received = new Date(); setSnapshot(next); setUpdated(received); setMapNow(received.getTime()); }
     } catch (error) {
       if (alive.current && request.current === current) { setSnapshot(null); setError(errors(error)); }
     } finally {
@@ -123,7 +132,7 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     alive.current = true; fetching.current = true;
     const current = ++request.current;
     api.snapshot().then(next => {
-      if (alive.current && request.current === current) { setSnapshot(next); setUpdated(new Date()); }
+      if (alive.current && request.current === current) { const received = new Date(); setSnapshot(next); setUpdated(received); setMapNow(received.getTime()); }
     }).catch(error => {
       if (alive.current && request.current === current) setError(errors(error));
     }).finally(() => {
@@ -131,6 +140,14 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     });
     return () => { alive.current = false; request.current += 1; };
   }, [userId]);
+
+  useEffect(() => {
+    if (page !== 'map') return;
+    const initial = setTimeout(() => setMapNow(Date.now()), 0);
+    const timer = setInterval(() => setMapNow(Date.now()), 30000);
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') setMapNow(Date.now()); });
+    return () => { clearTimeout(initial); clearInterval(timer); listener.remove(); };
+  }, [page]);
 
   async function change(operation: () => Promise<void>, done?: () => void) {
     if (mutation.current || fetching.current || !userId) return;
@@ -155,6 +172,7 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     finally { if (alive.current) setLeaving(false); }
   }
   function navigate(next: Page) { setPage(next); setSearch(''); setFilter('all'); }
+  const mapData = useMemo(() => buildActivityMap(snapshot?.lobbies ?? [], mapFilters, search, mapNow), [snapshot, mapFilters, search, mapNow]);
   const results = useMemo(() => {
     const query = search.toLowerCase().trim();
     const match = (...values: string[]) => values.join(' ').toLowerCase().includes(query);
@@ -172,7 +190,15 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     try {
       if (Platform.OS === 'web' || !await Sharing.isAvailableAsync()) throw new Error('CSV sharing is available in the Android or iOS app.');
       let rows: (string | number)[][];
-      if (page === 'overview') rows = [['Metric','Value'], ['Players',snapshot.totals.users], ['Total squads',snapshot.totals.lobbies], ['Active squads',snapshot.totals.active], ['Facilities',snapshot.totals.facilities], ['Squad joins',snapshot.totals.memberships], ['Day (UTC)','Squads created'], ...snapshot.daily.map(day => [day.day,day.count])];
+      if (page === 'map') {
+        if (mapData.rangeError) throw new Error(mapData.rangeError);
+        rows = activityMapRows(mapData, mapFilters, search, mapNow);
+      }
+      else if (page === 'insights') {
+        const asOf = updated ?? new Date();
+        rows = communityInsightsRows(buildCommunityInsights(snapshot, asOf.getTime()), asOf.toISOString());
+      }
+      else if (page === 'overview') rows = [['Metric','Value'], ['Players',snapshot.totals.users], ['Total squads',snapshot.totals.lobbies], ['Active squads',snapshot.totals.active], ['Facilities',snapshot.totals.facilities], ['Squad joins',snapshot.totals.memberships], ['Day (UTC)','Squads created'], ...snapshot.daily.map(day => [day.day,day.count])];
       else if (page === 'players') rows = [['Name','Email','Joined','Hosted','Joined squads'], ...results.players.map(player => [player.name,player.email,player.joined_at,player.hosted,player.joined])];
       else if (page === 'facilities') rows = [['Name','Type','Township','Latitude','Longitude'], ...results.facilities.map(facility => [facility.name,facility.facility_type,facility.township,facility.latitude,facility.longitude])];
       else if (page === 'activity') rows = [['Action','Administrator','Target ID','Date'], ...snapshot.audit.map(activity => [activity.action,activity.actor_email,activity.target_id,activity.created_at])];
@@ -185,11 +211,11 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
 
   const busy = working || refreshing;
   const sectionHeader = <View style={s.sectionHeader}>
-    <View style={s.rowBetween}><View style={s.grow}><Text style={s.eyebrow}>YOUR COMMUNITY</Text><Text style={s.sectionTitle}>{pages.find(item => item.key === page)?.label}</Text></View>
+    <View style={s.rowBetween}><View style={s.grow}><Text style={s.eyebrow}>YOUR COMMUNITY</Text><Text style={s.sectionTitle}>{page === 'insights' ? 'Community Insights' : page === 'map' ? 'Activity Map' : pages.find(item => item.key === page)?.label}</Text></View>
       {page === 'facilities' && <Button title="Add" icon="add" disabled={busy} onPress={() => setEditor({ id: null, name: '', facility_type: '', township: '', latitude: NaN, longitude: NaN })} />}
     </View>
     {snapshot?.limited && <Text style={s.notice}>Showing up to 2,000 records per list. Totals include all records.</Text>}
-    {page !== 'activity' && page !== 'overview' && <View style={s.searchBox}><Ionicons name="search-outline" size={19} color="#849187" /><TextInput style={s.searchInput} value={search} onChangeText={setSearch} placeholder={`Search ${page === 'lobbies' ? 'squads' : page}…`} placeholderTextColor="#849187" autoCorrect={false} accessibilityLabel={`Search ${page}`} />{search !== '' && <Pressable onPress={() => setSearch('')} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={18} color="#849187" /></Pressable>}</View>}
+    {page !== 'activity' && page !== 'overview' && page !== 'insights' && page !== 'map' && <View style={s.searchBox}><Ionicons name="search-outline" size={19} color="#849187" /><TextInput style={s.searchInput} value={search} onChangeText={setSearch} placeholder={`Search ${page === 'lobbies' ? 'squads' : page}…`} placeholderTextColor="#849187" autoCorrect={false} accessibilityLabel={`Search ${page}`} />{search !== '' && <Pressable onPress={() => setSearch('')} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={18} color="#849187" /></Pressable>}</View>}
     {page === 'lobbies' && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>{(['all','open','full','ended','cancelled','expired'] as Filter[]).map(value => <Pressable key={value} onPress={() => setFilter(value)} accessibilityRole="button" accessibilityState={{ selected: filter === value }} style={[s.filter, filter === value && s.selectedFilter]}><Text style={[s.filterText, filter === value && s.selectedFilterText]}>{value}</Text></Pressable>)}</ScrollView>}
     {page === 'activity' && <Text style={s.sectionDescription}>The 50 most recent administrator actions.</Text>}
   </View>;
@@ -202,16 +228,26 @@ function NativeDashboard({ userId, email }: { userId: string; email: string }) {
     <View style={s.navigation}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.navigationContent}>{pages.map(item => <Pressable key={item.key} accessibilityRole="button" accessibilityState={{ selected: page === item.key }} onPress={() => navigate(item.key)} style={[s.tab, page === item.key && s.selectedTab]}><Ionicons name={item.icon} size={17} color={page === item.key ? '#28553f' : '#849187'} /><Text style={[s.tabText, page === item.key && s.selectedTabText]}>{item.label}</Text></Pressable>)}</ScrollView></View>
     {!snapshot ? <View style={s.loading}>{error ? <><Ionicons name="cloud-offline-outline" size={40} color="#758178" /><Text style={s.emptyTitle}>Dashboard unavailable</Text><Text style={s.emptyText}>{error}</Text><Button title="Try again" onPress={() => { void reload(); }} disabled={refreshing} /></> : <><ActivityIndicator color="#28553f" size="large" /><Text style={s.emptyText}>Loading your community…</Text></>}</View> : <>
       {page === 'overview' ? <ScrollView contentContainerStyle={s.listContent} refreshControl={refresh}>
-        {sectionHeader}<View style={s.hero}><View style={s.heroLabel}><View style={s.liveDot} /><Text style={s.heroEyebrow}>COMMUNITY PULSE</Text></View><Text style={s.heroTitle}>More games.{ '\n' }Better together.</Text><Text style={s.heroDescription}>Keep every squad moving in the right direction.</Text><View style={s.heroBottom}><Text style={s.heroCount}>{snapshot.totals.active}</Text><Text style={s.heroCountLabel}>active squads</Text><View style={s.heroBall}><Ionicons name="basketball-outline" size={62} color="#abc6ae" /></View></View></View>
+        {sectionHeader}
+        <Pressable accessibilityRole="button" accessibilityLabel="Open activity map" onPress={() => navigate('map')} style={({ pressed }) => [s.mapEntry, pressed && s.faded]}>
+          <View style={s.mapEntryIcon}><Ionicons name="map-outline" size={25} color="#28553f" /></View>
+          <View style={s.grow}><Text style={s.mapEntryTitle}>Open activity map</Text><Text style={s.mapEntryDescription}>View activity locations and tap pins for details.</Text></View>
+          <Ionicons name="arrow-forward" size={21} color="#28553f" />
+        </Pressable>
+        <View style={s.hero}><View style={s.heroLabel}><View style={s.liveDot} /><Text style={s.heroEyebrow}>COMMUNITY PULSE</Text></View><Text style={s.heroTitle}>More games.{ '\n' }Better together.</Text><Text style={s.heroDescription}>Keep every squad moving in the right direction.</Text><View style={s.heroBottom}><Text style={s.heroCount}>{snapshot.totals.active}</Text><Text style={s.heroCountLabel}>active squads</Text><View style={s.heroBall}><Ionicons name="basketball-outline" size={62} color="#abc6ae" /></View></View></View>
         <View style={s.metrics}>{([{ label: 'Players', value: snapshot.totals.users, icon: 'people-outline', target: 'players' }, { label: 'Total squads', value: snapshot.totals.lobbies, icon: 'basketball-outline', target: 'lobbies' }, { label: 'Facilities', value: snapshot.totals.facilities, icon: 'location-outline', target: 'facilities' }, { label: 'Squad joins', value: snapshot.totals.memberships, icon: 'person-add-outline', target: 'players' }] as { label: string; value: number; icon: IconName; target: Page }[]).map(metric => <Pressable key={metric.label} accessibilityRole="button" onPress={() => navigate(metric.target)} style={s.metric}><Ionicons name={metric.icon} size={21} color="#6f8975" /><Text style={s.metricValue}>{metric.value.toLocaleString()}</Text><Text style={s.metricLabel}>{metric.label}</Text></Pressable>)}</View>
         <View style={s.chartCard}><View style={s.rowBetween}><Text style={s.itemTitle}>Last 7 days</Text><Text style={s.small}>Squads created · UTC</Text></View><View style={s.chart}>{snapshot.daily.map(day => <View key={day.day} style={s.chartColumn}><Text style={s.chartCount}>{day.count}</Text><View style={s.barTrack}><View style={[s.bar, { height: Math.max(3, 90 * day.count / Math.max(1, ...snapshot.daily.map(item => item.count))) }]} /></View><Text style={s.chartDay}>{new Date(`${day.day}T12:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', timeZone: 'UTC' })}</Text></View>)}</View></View>
         <View style={s.rowBetween}><Text style={s.blockTitle}>Latest squads</Text><Pressable onPress={() => navigate('lobbies')} accessibilityRole="button"><Text style={s.textLink}>View all →</Text></Pressable></View>
         {snapshot.lobbies.length === 0 ? <Empty title="No squads yet">New squads from the player app will appear here.</Empty> : snapshot.lobbies.slice(0, 5).map(lobby => <LobbyCard key={lobby.id} lobby={lobby} working={busy} moderate={moderate} />)}
-      </ScrollView> : page === 'lobbies' ? <FlatList key={page} data={results.lobbies} keyExtractor={item => item.id} contentContainerStyle={s.listContent} refreshControl={refresh} ListHeaderComponent={sectionHeader} ListEmptyComponent={<Empty title="No matching squads">Try a different search or status.</Empty>} renderItem={({ item }) => <LobbyCard lobby={item} working={busy} moderate={moderate} />} />
+      </ScrollView> : page === 'insights' ? <ScrollView key={page} contentContainerStyle={s.listContent} refreshControl={refresh}>
+        {sectionHeader}{updated && <CommunityInsights snapshot={snapshot} asOf={updated.getTime()} />}
+      </ScrollView> : page === 'map' ? <AdminActivityMap data={mapData} filters={mapFilters} onFiltersChange={setMapFilters} query={search} onQueryChange={setSearch} now={mapNow}
+        loaded={snapshot.lobbies.length} total={snapshot.totals.lobbies} header={sectionHeader} busy={busy} refreshing={refreshing} onRefresh={() => { void reload(); }} onModerate={moderate} />
+      : page === 'lobbies' ? <FlatList key={page} data={results.lobbies} keyExtractor={item => item.id} contentContainerStyle={s.listContent} refreshControl={refresh} ListHeaderComponent={sectionHeader} ListEmptyComponent={<Empty title="No matching squads">Try a different search or status.</Empty>} renderItem={({ item }) => <LobbyCard lobby={item} working={busy} moderate={moderate} />} />
         : page === 'players' ? <FlatList key={page} data={results.players} keyExtractor={item => item.id} contentContainerStyle={s.listContent} refreshControl={refresh} ListHeaderComponent={sectionHeader} ListEmptyComponent={<Empty title="No matching players">Players with a SquadUp profile will appear here.</Empty>} renderItem={({ item }) => <PlayerCard player={item} />} />
         : page === 'facilities' ? <FlatList key={page} data={results.facilities} keyExtractor={item => item.id} contentContainerStyle={s.listContent} refreshControl={refresh} ListHeaderComponent={sectionHeader} ListEmptyComponent={<Empty title="No matching facilities">Add a facility or change your search.</Empty>} renderItem={({ item }) => <FacilityCard facility={item} working={busy} edit={facility => setEditor(facility)} />} />
         : <FlatList key={page} data={snapshot.audit} keyExtractor={item => item.id} contentContainerStyle={s.listContent} refreshControl={refresh} ListHeaderComponent={sectionHeader} ListEmptyComponent={<Empty title="No admin actions yet">Saved changes will be recorded here.</Empty>} renderItem={({ item }) => <ActivityCard activity={item} />} />}
-      <View style={s.footer}><Text style={s.footerText}>{working ? 'Saving changes…' : 'Pull down to refresh'}</Text><Button title={exporting ? 'Exporting…' : 'Export CSV'} icon="download-outline" quiet disabled={busy || exporting} onPress={() => { void exportData(); }} /></View>
+      <View style={s.footer}><Text style={s.footerText}>{working ? 'Saving changes…' : 'Pull down to refresh'}</Text><Button title={exporting ? 'Exporting…' : 'Export CSV'} icon="download-outline" quiet disabled={busy || exporting || (page === 'map' && Boolean(mapData.rangeError))} onPress={() => { void exportData(); }} /></View>
     </>}
     {editor && <FacilityEditor value={editor} working={working} close={() => { if (!mutation.current) setEditor(null); }} save={input => { void change(() => api.saveFacility(input), () => setEditor(null)); }} />}
   </SafeAreaView>;
@@ -240,6 +276,7 @@ function FacilityEditor({ value, working, close, save }: { value: FacilityInput;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f5f6f0' }, grow: { flex: 1, minWidth: 0 },
+  mapEntry: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 17, borderRadius: 15, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd9bb' }, mapEntryIcon: { width: 46, height: 46, borderRadius: 13, backgroundColor: '#eef3e6', alignItems: 'center', justifyContent: 'center' }, mapEntryTitle: { fontSize: 16, fontWeight: '700', color: '#28553f' }, mapEntryDescription: { fontSize: 11, lineHeight: 18, color: '#758178', marginTop: 4 },
   header: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 13, backgroundColor: '#fff' }, brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   brandIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#28553f', alignItems: 'center', justifyContent: 'center' }, brand: { fontSize: 24, letterSpacing: -1, fontWeight: '800', color: '#203c2b' }, brandDot: { color: '#a0b967' }, accountEmail: { fontSize: 11, color: '#758178', marginTop: 2 }, iconButton: { padding: 10 },
   headerMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }, adminLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 }, adminLabelText: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, color: '#28553f' }, updated: { fontSize: 10, color: '#849187' },
