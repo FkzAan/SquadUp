@@ -11,15 +11,19 @@ import SportVisual, { sportIcon, sportKind } from '../components/ui/SportVisual'
 import SportPickerModal from '../components/ui/SportPickerModal';
 import Avatar from '../components/Avatar';
 import { fetchMyProfile } from '../services/profileService';
+import { getMySportsPreferences, type SportsPreferences } from '../services/sportsIdentityService';
+import SquadMatchSection from '../components/SquadMatchSection';
+import { router } from 'expo-router';
 import type { Profile } from '../types';
 import type { Lobby } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { formatSchedule, isOver } from '../utils/lobby';
+import { sortSquadsForDiscovery } from '../utils/squadSort';
 import { palette, radius, cardShadow } from '../theme';
 
-type Props = { onHost: () => void; onMyLobbies: () => void; onOpenLobby: (id: string) => void; onProfile: () => void };
+type Props = { onHost: () => void; onMyLobbies: () => void; onOpenLobby: (id: string) => void; onProfile: () => void; onPreferences?: () => void };
 const SPORTS = ['All', 'Running', 'Badminton', 'Futsal', 'Pickleball', 'Chess'];
-export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile }: Props) {
+export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile, onPreferences }: Props) {
   const { t, language } = useLanguage();
   const { lobbies, loading, refresh } = useLobbies();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,16 +31,18 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
   const [sportFilter, setSportFilter] = useState('All');
   const [sportPickerOpen, setSportPickerOpen] = useState(false);
   const [headerProfile, setHeaderProfile] = useState<Profile | null>(null);
+  const [preferences, setPreferences] = useState<SportsPreferences | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const selected = lobbies.find(l => l.id === selectedId) ?? null;
   const unmapped = lobbies.filter(l => l.latitude == null || l.longitude == null).length;
-  const filtered = sportFilter === 'All' ? lobbies : lobbies.filter(l => sportKind(l.activity_type) === sportKind(sportFilter));
+  const filtered = sortSquadsForDiscovery(sportFilter === 'All' ? lobbies : lobbies.filter(l => sportKind(l.activity_type) === sportKind(sportFilter)));
 
   useFocusEffect(useCallback(() => {
     // Refetch when returning from Profile after changing the avatar.
     let active = true;
     fetchMyProfile().then(p => { if (active) setHeaderProfile(p); });
+    getMySportsPreferences().then(({data})=>{if(active)setPreferences(data);});
     return () => { active = false; };
   }, []));
 
@@ -120,7 +126,7 @@ export default function FeedScreen({ onHost, onMyLobbies, onOpenLobby, onProfile
       keyExtractor={item => item.id}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.blue} />}
       contentContainerStyle={s.listContent}
-      ListHeaderComponent={<View style={s.listHead}><Text style={s.sectionTitle}>{t('nearbySquads')}</Text><Text style={s.counter}>{filtered.length}</Text></View>}
+      ListHeaderComponent={<><SquadMatchSection lobbies={lobbies} preferences={preferences} joinedIds={joinedIds} onOpenLobby={onOpenLobby} onEdit={()=>onPreferences ? onPreferences() : router.push('/(player)/preferences')}/><View style={s.nearbyHeader}><View style={s.nearbyHeading}><View style={s.nearbyIcon}><Ionicons name="compass-outline" color={palette.blue} size={19}/></View><View style={{flex:1}}><Text style={s.sectionTitle}>{t('nearbySquads')}</Text><Text style={s.sectionHint}>{language==='ms'?'Teroka semua squad · Slot tersedia di atas':'Explore all squads · Available spots first'}</Text></View></View><View style={s.counterPill}><Text style={s.counter}>{filtered.length}</Text></View></View></>}
       ListEmptyComponent={<Text style={s.empty}>{t('noActiveSquads')}</Text>}
       renderItem={({ item }) => renderCard(item)}
     /> : <View style={s.mapArea}>
@@ -152,6 +158,11 @@ const s = StyleSheet.create({
   filter: { backgroundColor: '#fff', flexDirection: 'row', paddingHorizontal: 13, paddingVertical: 10, borderRadius: radius.pill, gap: 5, alignItems: 'center', borderWidth: 1, borderColor: palette.border },
   filterActive: { backgroundColor: palette.blue, borderColor: palette.blue }, filterText: { color: palette.navy, fontSize: 12, fontWeight: '700' }, filterTextActive: { color: '#fff' },
   listContent: { paddingTop: 8, paddingHorizontal: 16, paddingBottom: 30, flexGrow: 1 },
+  nearbyHeader: { marginTop: 21, marginBottom: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nearbyHeading: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1 },
+  nearbyIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#DDEAFF', justifyContent: 'center', alignItems: 'center' },
+  sectionHint: { color: '#8192AA', fontSize: 10, marginTop: 3 },
+  counterPill: { borderRadius: 11, backgroundColor: '#E2EDFF', paddingHorizontal: 12, paddingVertical: 7 },
   listHead: { flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 13 }, sectionTitle: { fontSize: 19, fontWeight: '800', color: palette.navy }, counter: { color: palette.blue, fontWeight: '800' },
   card: { backgroundColor: '#fff', borderRadius: radius.card, marginBottom: 13, borderWidth: 1, borderColor: palette.border, flexDirection: 'row', alignItems: 'flex-start', overflow: 'hidden', ...cardShadow },
   cardCompact: { marginBottom: 0, elevation: 0, shadowOpacity: 0, borderWidth: 0 },

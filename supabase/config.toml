@@ -1,0 +1,5 @@
+# Only applies to the new squadmatch-ai Edge Function.
+# JWT gateway verification is disabled for publishable-key compatibility;
+# the function verifies the actual signed-in user via /auth/v1/user.
+[functions.squadmatch-ai]
+verify_jwt = false

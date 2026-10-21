@@ -8,6 +8,9 @@ import HostLobbyScreen from './screens/HostLobbyScreen';
 import MyLobbiesScreen from './screens/MyLobbiesScreen';
 import LobbyDetailScreen from './screens/LobbyDetailScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import SettingsScreen from './screens/SettingsScreen';
+import SportsPreferencesScreen from './screens/SportsPreferencesScreen';
+import { getMySportsPreferences } from './services/sportsIdentityService';
 import { LanguageProvider } from './context/LanguageContext';
 import LobbyChatScreen from './screens/LobbyChatScreen';
 
@@ -16,6 +19,9 @@ type Screen =
   | { name: 'host' }
   | { name: 'myLobbies' }
   | { name: 'profile' }
+  | { name: 'settings' }
+  | { name: 'preferences'; from: 'feed' | 'profile' }
+  | { name: 'publicProfile'; userId: string; lobbyId: string; from: 'feed' | 'myLobbies' }
   | { name: 'detail'; lobbyId: string; from: 'feed' | 'myLobbies' }
   | { name: 'chat'; lobbyId: string; title: string; from: 'feed' | 'myLobbies' };
 
@@ -37,6 +43,16 @@ function AppContent() {
     return onAuthChange(setSession);
   }, []);
 
+  // Onboarding stores preferences locally; it never changes Supabase database.
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    getMySportsPreferences().then(({ data, error }) => {
+      if (active && !error && !data?.onboarding_completed) setScreen({ name: 'preferences', from: 'feed' });
+    });
+    return () => { active = false; };
+  }, [session?.user.id]);
+
   // log keluar: kembali ke Feed untuk sesi seterusnya
   useEffect(() => {
     if (!session) setScreen({ name: 'feed' });
@@ -46,7 +62,13 @@ function AppContent() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (screen.name === 'feed') return false;
-      if (screen.name === 'detail') {
+      if (screen.name === 'settings') {
+        setScreen({name:'profile'});
+      } else if (screen.name === 'preferences') {
+        setScreen(screen.from === 'feed' ? {name:'feed'} : {name:'profile'});
+      } else if (screen.name === 'publicProfile') {
+        setScreen({name:'detail', lobbyId:screen.lobbyId, from:screen.from});
+      } else if (screen.name === 'detail') {
         backFromDetail(screen.from);
       } else if (screen.name === 'chat') {
         setScreen({ name: 'detail', lobbyId: screen.lobbyId, from: screen.from });
@@ -72,7 +94,13 @@ function AppContent() {
     case 'host':
       return <HostLobbyScreen onDone={() => setScreen({ name: 'feed' })} />;
     case 'profile':
-      return <ProfileScreen onBack={() => setScreen({ name: 'feed' })} />;
+      return <ProfileScreen onBack={() => setScreen({ name: 'feed' })} onSettings={() => setScreen({name:'settings'})} onPreferences={() => setScreen({name:'preferences',from:'profile'})} />;
+    case 'settings':
+      return <SettingsScreen onBack={() => setScreen({name:'profile'})} />;
+    case 'preferences':
+      return <SportsPreferencesScreen onDone={() => setScreen(screen.from === 'feed' ? {name:'feed'} : {name:'profile'})} onBack={() => setScreen(screen.from === 'feed' ? {name:'feed'} : {name:'profile'})} />;
+    case 'publicProfile':
+      return <ProfileScreen userId={screen.userId} onBack={() => setScreen({name:'detail',lobbyId:screen.lobbyId,from:screen.from})} onSettings={() => setScreen({name:'settings'})} onPreferences={() => setScreen({name:'preferences',from:'profile'})}/>;
     case 'myLobbies':
       return (
         <MyLobbiesScreen
@@ -85,6 +113,7 @@ function AppContent() {
         <LobbyDetailScreen
           lobbyId={screen.lobbyId}
           onBack={() => backFromDetail(screen.from)}
+          onOpenPlayer={(userId) => setScreen({ name: 'publicProfile', userId, lobbyId: screen.lobbyId, from: screen.from })}
           onOpenChat={(title) =>
             setScreen({ name: 'chat', lobbyId: screen.lobbyId, title, from: screen.from })
           }
@@ -104,6 +133,7 @@ function AppContent() {
           onHost={() => setScreen({ name: 'host' })}
           onMyLobbies={() => setScreen({ name: 'myLobbies' })}
           onProfile={() => setScreen({ name: 'profile' })}
+          onPreferences={() => setScreen({ name: 'preferences', from: 'feed' })}
           onOpenLobby={(id) => setScreen({ name: 'detail', lobbyId: id, from: 'feed' })}
         />
       );

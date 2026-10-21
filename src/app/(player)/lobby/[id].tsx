@@ -12,6 +12,7 @@ export default function LobbyDetail() {
     <LobbyDetailScreen
       lobbyId={id}
       onBack={() => router.dismissTo(fromPage === 'my-lobbies' ? '/(player)/my-lobbies' : '/(player)')}
+      onOpenPlayer={userId => router.push({pathname: "/(player)/player/[id]", params: {id:userId}})}
       onOpenChat={title => router.push({
         pathname: '/(player)/chat/[id]',
         params: { id, title, from: fromPage }

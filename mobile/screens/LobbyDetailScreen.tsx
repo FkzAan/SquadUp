@@ -16,17 +16,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import Avatar from '../components/Avatar';
+import SquadAttendanceCard from '../components/SquadAttendanceCard';
 import { getCurrentUserId } from '../services/authService';
 import {
   deleteLobby,
   fetchLobbyById,
   fetchLobbyMembers,
   isMemberOf,
+  joinLobby,
   kickMember,
   leaveLobby,
   subscribeToLobbyDetail,
 } from '../services/lobbyService';
-import { formatClock, formatSchedule, formatTime, isEnded, statusLabel } from '../utils/lobby';
+import { formatClock, formatSchedule, formatTime, isEnded, isOver, statusLabel } from '../utils/lobby';
 import type { Lobby, LobbyMember } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import SportVisual from '../components/ui/SportVisual';
@@ -36,12 +38,14 @@ type Props = {
   lobbyId: string;
   onBack: () => void;
   onOpenChat: (title: string) => void;
+  onOpenPlayer?: (userId: string) => void;
 };
 
 export default function LobbyDetailScreen({
   lobbyId,
   onBack,
   onOpenChat,
+  onOpenPlayer,
 }: Props) {
   const { t, language } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -123,6 +127,17 @@ export default function LobbyDetailScreen({
         Alert.alert(t('cantOpenMaps'), t('copyLink', { url: web }));
       }
     }
+  }
+
+  async function handleJoin() {
+    if (busy) return;
+    setBusy(true);
+    // Membership, capacity and RLS checks remain in the existing service/database.
+    const err = await joinLobby(lobbyId);
+    setBusy(false);
+    if (err) Alert.alert(t('cannotJoin'), err);
+    // Refresh even on an error: the lobby may have filled or the user may already be a member.
+    await load();
   }
 
   function confirmLeave() {
@@ -209,7 +224,8 @@ export default function LobbyDetailScreen({
   const showChat = isHost || isMember;
   const showDelete = !ended && isHost;
   const showLeave = !ended && !isHost && isMember;
-  const showActions = showChat || showLeave || showDelete;
+  const showJoin = Boolean(myId) && !isHost && !isMember && !ended && !isOver(lobby) && lobby.status === 'open' && lobby.current_players < lobby.max_players;
+  const showActions = showChat || showLeave || showDelete || showJoin;
   const stackActions = width < 420;
   const previewCount = width < 400 ? 5 : 7;
 
@@ -313,10 +329,10 @@ export default function LobbyDetailScreen({
           {members.map((m, idx) => (
             <View key={m.user_id} style={[s.memberRow, idx === members.length - 1 && s.lastMember]}>
               <Avatar uri={m.avatar_url} name={m.name} size={42}/>
-              <View style={s.memberText}>
+              <TouchableOpacity disabled={!onOpenPlayer} onPress={() => onOpenPlayer?.(m.user_id)} style={s.memberText} accessibilityLabel={`View ${m.name} sports profile`}>
                 <Text style={s.memberName} numberOfLines={1}>{m.name}{m.user_id === myId ? t('you') : ''}</Text>
                 <Text style={s.memberMeta}>{t('joinedAt', { time: formatTime(m.joined_at) })}</Text>
-              </View>
+              </TouchableOpacity>
               {m.is_host && <Text style={s.hostTag}>Host</Text>}
               {isHost && !ended && !m.is_host && (
                 <TouchableOpacity style={s.kickBtn} onPress={() => confirmKick(m)} disabled={kickingId !== null} activeOpacity={0.7}>
@@ -326,12 +342,30 @@ export default function LobbyDetailScreen({
             </View>
           ))}
         </View>
+        {(isMember || isHost) && <SquadAttendanceCard lobby={lobby} members={members} isHost={isHost} myId={myId} />}
         {ended && <Text style={s.endedNote}>{t('endedHistory')}</Text>}
       </ScrollView>
+      {/* Explain why joining is unavailable instead of displaying an empty action area. */}
+      {!showActions && !!myId && !isHost && !isMember && (
+        <View style={[s.actionDock, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <View style={s.unavailableDock}>
+            <Ionicons name="information-circle-outline" size={19} color={palette.muted}/>
+            <Text style={s.unavailableText}>{ended || isOver(lobby)
+              ? (language === 'ms' ? 'Aktiviti ini sudah tamat.' : 'This session has ended.')
+              : (language === 'ms' ? 'Squad ini sudah penuh.' : 'This squad is currently full.')}</Text>
+          </View>
+        </View>
+      )}
       {/* Fixed actions respect device safe area; they never disappear below a long member list. */}
       {showActions && (
         <View style={[s.actionDock, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={[s.actionRow, stackActions && s.actionStack]}>
+            {showJoin && (
+              <TouchableOpacity style={s.chatBtn} onPress={handleJoin} disabled={busy} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('join')}>
+                {busy ? <ActivityIndicator color="#FFFFFF" size="small"/> : <Ionicons name="person-add-outline" size={19} color="#FFFFFF"/>}
+                <Text style={s.chatText} numberOfLines={1}>{busy ? t('processing') : t('join')}</Text>
+              </TouchableOpacity>
+            )}
             {showChat && (
               <TouchableOpacity style={s.chatBtn} onPress={() => onOpenChat(lobby.activity_type)} activeOpacity={0.8}>
                 <Ionicons name="chatbubbles-outline" size={19} color="#fff"/>
@@ -436,6 +470,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 12, shadowColor: '#16386D', shadowOpacity: 0.08,
     shadowRadius: 8, shadowOffset: { height: -3, width: 0 }, elevation: 5 },
   actionRow: { flexDirection: 'row', gap: 9, alignItems: 'stretch' },
+  unavailableDock: { flexDirection: 'row', gap: 9, alignItems: 'center', justifyContent: 'center', padding: 13, backgroundColor: '#F1F5FB', borderRadius: 13 },
+  unavailableText: { color: palette.muted, fontSize: 12, fontWeight: '700' },
   actionStack: { flexDirection: 'column' },
   chatBtn: { backgroundColor: palette.blue, flex: 1, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 7, minHeight: 49, paddingHorizontal: 10, borderRadius: 14 },
