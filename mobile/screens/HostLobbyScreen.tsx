@@ -10,8 +10,12 @@ import { formatClock } from '../utils/lobby';
 import type { Coords } from '../components/LocationPickerModal';
 import type { Facility, SkillLevel } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import SportVisual, { sportIcon } from '../components/ui/SportVisual';
+import SportPickerModal from '../components/ui/SportPickerModal';
+import { palette, radius, cardShadow } from '../theme';
 
 const SKILLS: SkillLevel[] = ['Friendly', 'Competitive'];
+const SPORT_PRESETS = ['Running', 'Badminton', 'Futsal', 'Basketball', 'Pickleball', 'Chess', 'Tennis', 'Cycling'];
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const GRACE_MINUTES = 15;
@@ -42,9 +46,10 @@ function computeRange(day: Date, startTime: Date, endTime: Date) {
 }
 
 export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [facilities, setFacilities] = useState<Facility[]>([]);
     const [activity, setActivity] = useState('');
+    const [sportPickerOpen, setSportPickerOpen] = useState(false);
     const [locationName, setLocationName] = useState('');
     const [facility, setFacility] = useState<Facility | null>(null);
     const [coords, setCoords] = useState<Coords | null>(null);
@@ -131,12 +136,26 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
             <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
                 <View style={s.topRow}>
                     <TouchableOpacity style={s.backBtn} onPress={onDone} activeOpacity={0.7}>
-                        <Ionicons name="arrow-back" size={24} color="#111827" />
+                        <Ionicons name="arrow-back" size={24} color={palette.navy} />
                     </TouchableOpacity>
                     <Text style={s.title}>{t('hostSquad')}</Text>
                 </View>
 
+                <Text style={s.sectionEyebrow}>01  •  {t('activity')}</Text>
                 <Text style={s.label}>{t('activity')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.sportScroll}>
+                    {SPORT_PRESETS.map((sp) => (
+                        <TouchableOpacity key={sp} onPress={() => setActivity(sp)} style={[s.sportChip, activity.toLowerCase() === sp.toLowerCase() && s.sportChipActive]}>
+                            <SportVisual activity={sp} style={s.sportChipImage} />
+                            <Text numberOfLines={1} style={[s.sportLabel, activity.toLowerCase() === sp.toLowerCase() && s.sportLabelActive]}>{sp}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity onPress={() => setSportPickerOpen(true)} style={[s.sportChip, s.moreChip]} accessibilityLabel={language === 'ms' ? 'Lagi sukan' : 'More sports'}>
+                        <Ionicons name="grid-outline" size={21} color={palette.blue} />
+                        <Text style={s.sportLabel}>{language === 'ms' ? 'Lagi sukan' : 'More sports'}</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+                {!!activity.trim() && <SportVisual activity={activity} style={s.sportBanner} />}
                 <TextInput
                     style={s.input}
                     placeholder={t('activityExample')}
@@ -144,6 +163,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     onChangeText={setActivity}
                 />
 
+                <Text style={s.sectionEyebrow}>02  •  {t('location')}</Text>
                 <Text style={s.label}>{t('locationName')}</Text>
                 <TextInput
                     style={s.input}
@@ -186,6 +206,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     </Text>
                 </TouchableOpacity>
 
+                <Text style={s.sectionEyebrow}>03  •  {t('whenPlay')}</Text>
                 <Text style={s.label}>{t('whenPlay')}</Text>
                 <View style={s.timeRow}>
                     <DateTimeField label={t('date')} mode="date" value={day} onChange={setDay} minimumDate={today0} />
@@ -202,6 +223,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                     </Text>
                 </View>
 
+                <Text style={s.sectionEyebrow}>04  •  {t('players')}</Text>
                 <Text style={s.label}>{t('totalPlayers', { count: maxPlayers })}</Text>
                 <Slider
                     minimumValue={2}
@@ -232,6 +254,7 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
                 </TouchableOpacity>
             </ScrollView>
 
+            <SportPickerModal visible={sportPickerOpen} selected={activity} onSelect={setActivity} onClose={() => setSportPickerOpen(false)} language={language} />
             <LocationPickerModal
                 visible={pickerOpen}
                 initial={coords}
@@ -243,36 +266,31 @@ export default function HostLobbyScreen({ onDone }: { onDone: () => void }) {
 }
 
 const s = StyleSheet.create({
-    container: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-    backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
-    title: { fontSize: 26, fontWeight: '800' },
-    label: { fontWeight: '600', marginTop: 16, marginBottom: 8, color: '#374151' },
-    hint: { color: '#6b7280', fontSize: 12, marginBottom: 6 },
-    input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12 },
-    row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    timeRow: { flexDirection: 'row', gap: 8 },
-    summary: { backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginTop: 10 },
-    summaryMain: { color: '#1d4ed8', fontWeight: '800' },
-    summarySub: { color: '#3b82f6', fontSize: 12, marginTop: 4 },
-    mapBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        borderWidth: 1,
-        borderColor: '#2563eb',
-        borderStyle: 'dashed',
-        borderRadius: 10,
-        padding: 14,
-    },
-    mapBtnDone: { borderStyle: 'solid', borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
-    mapBtnText: { color: '#2563eb', fontWeight: '700' },
-    mapBtnTextDone: { color: '#166534' },
-    sliderLabels: { flexDirection: 'row', justifyContent: 'space-between' },
-    chip: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14 },
-    chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-    chipText: { color: '#374151' },
-    chipTextActive: { color: '#fff', fontWeight: '700' },
-    button: { backgroundColor: '#16a34a', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28 },
-    buttonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  container: { backgroundColor: palette.canvas, paddingHorizontal: 19, paddingTop: 57, paddingBottom: 45 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 25 },
+  backBtn: { backgroundColor: '#fff', borderRadius: 14, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: palette.border },
+  title: { fontSize: 23, fontWeight: '900', color: palette.navy },
+  sectionEyebrow: { color: palette.blue, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 20, marginBottom: 4 },
+  label: { color: palette.navy, fontWeight: '800', marginTop: 8, marginBottom: 8, fontSize: 14 },
+  hint: { color: palette.muted, fontSize: 12, marginBottom: 6 },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: palette.border, borderRadius: 14, padding: 14, color: palette.navy, fontSize: 15 },
+  sportScroll: { gap: 9, paddingVertical: 2, paddingRight: 18 },
+  sportChip: { backgroundColor: '#fff', borderColor: palette.border, borderWidth: 1, borderRadius: 14, width: 104, minHeight: 96, padding: 7, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  sportChipImage: { width: 88, height: 58, borderRadius: 9 },
+  sportChipActive: { backgroundColor: palette.blue, borderColor: palette.blue },
+  moreChip: { backgroundColor: palette.blueSoft, borderStyle: 'dashed', borderColor: '#9CC4FF' },
+  sportLabel: { color: palette.navy, fontWeight: '700', fontSize: 11 }, sportLabelActive: { color: '#fff' },
+  sportBanner: { width: '100%', height: 96, borderRadius: 16, marginTop: 9 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, timeRow: { flexDirection: 'row', gap: 8 },
+  summary: { backgroundColor: '#DFEDFF', borderRadius: 15, padding: 13, marginTop: 12 },
+  summaryMain: { color: palette.blueDark, fontWeight: '900' }, summarySub: { color: '#426996', fontSize: 12, marginTop: 5 },
+  mapBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', padding: 16, borderRadius: 15, borderWidth: 1, borderColor: palette.border },
+  mapBtnDone: { backgroundColor: '#ECFCF4', borderColor: '#B5E9CD' },
+  mapBtnText: { color: palette.blue, fontWeight: '700', flexShrink: 1 }, mapBtnTextDone: { color: '#12804E' },
+  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  chip: { backgroundColor: '#fff', borderWidth: 1, borderColor: palette.border, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 17 },
+  chipActive: { backgroundColor: palette.blue, borderColor: palette.blue },
+  chipText: { color: palette.navy, fontWeight: '600' }, chipTextActive: { color: '#fff', fontWeight: '800' },
+  button: { backgroundColor: palette.blue, borderRadius: 16, padding: 17, alignItems: 'center', marginTop: 29, ...cardShadow },
+  buttonText: { color: '#fff', fontWeight: '900', fontSize: 16 },
 });

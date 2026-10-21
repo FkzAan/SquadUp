@@ -18,6 +18,7 @@ import { changePassword, fetchMyProfile, removeAvatar, updateName, uploadAvatar 
 import type { Profile } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSelector from '../components/LanguageSelector';
+import { palette, cardShadow } from '../theme';
 
 export default function ProfileScreen({ onBack }: { onBack: () => void }) {
   const { t } = useLanguage();
@@ -159,6 +160,7 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
         {Header}
 
         <View style={s.avatarWrap}>
+          <View style={s.profileAccent} />
           <TouchableOpacity onPress={pickImage} activeOpacity={0.8} disabled={uploading}>
             <Avatar uri={profile.avatar_url} name={profile.name} size={110} />
             <View style={s.camBadge}>
@@ -248,33 +250,19 @@ export default function ProfileScreen({ onBack }: { onBack: () => void }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: 60 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 12 },
-  backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
-  title: { fontSize: 24, fontWeight: '800' },
-  avatarWrap: { alignItems: 'center', marginVertical: 12 },
-  camBadge: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#2563eb',
-    borderWidth: 3,
-    borderColor: '#f9fafb',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  email: { color: '#6b7280', marginTop: 10 },
-  avatarActions: { flexDirection: 'row', gap: 20, marginTop: 8 },
-  link: { color: '#2563eb', fontWeight: '700' },
-  linkDanger: { color: '#dc2626', fontWeight: '700' },
-  card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 14, elevation: 2 },
-  languageHint: { color: '#6b7280', marginBottom: 12, fontSize: 13 },
-  cardTitle: { fontWeight: '800', color: '#374151', marginBottom: 10 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, marginBottom: 10 },
-  primaryBtn: { backgroundColor: '#2563eb', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 2 },
-  primaryText: { color: '#fff', fontWeight: '800' },
-  btnDisabled: { backgroundColor: '#9ca3af' },
+  container: { flex: 1, backgroundColor: palette.canvas, paddingTop: 56 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginBottom: 14 },
+  backBtn: { width: 43, height: 43, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 23, fontWeight: '900', color: palette.navy },
+  avatarWrap: { alignItems: 'center', paddingTop: 27, paddingBottom: 24, marginHorizontal: 16, borderRadius: 23, overflow: 'hidden', backgroundColor: '#DAEAFF', marginBottom: 4 },
+  profileAccent: { position: 'absolute', width: 300, height: 300, backgroundColor: '#BBD9FF', borderRadius: 150, top: -220, right: -110 },
+  camBadge: { position: 'absolute', right: 0, bottom: 0, width: 35, height: 35, borderRadius: 18, backgroundColor: palette.blue, borderWidth: 3, borderColor: '#DAEAFF', alignItems: 'center', justifyContent: 'center' },
+  email: { color: '#526D91', marginTop: 12, fontWeight: '600' },
+  avatarActions: { flexDirection: 'row', gap: 19, marginTop: 9 }, link: { color: palette.blue, fontWeight: '800' }, linkDanger: { color: palette.danger, fontWeight: '800' },
+  card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 13, padding: 17, borderRadius: 20, borderWidth: 1, borderColor: palette.border, ...cardShadow },
+  languageHint: { color: palette.muted, marginBottom: 12, fontSize: 13 },
+  cardTitle: { fontWeight: '900', color: palette.navy, marginBottom: 12, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: palette.border, borderRadius: 13, padding: 13, marginBottom: 11, backgroundColor: '#FBFDFF', color: palette.navy },
+  primaryBtn: { backgroundColor: palette.blue, borderRadius: 13, padding: 14, alignItems: 'center', marginTop: 3 },
+  primaryText: { color: '#fff', fontWeight: '900' }, btnDisabled: { backgroundColor: '#98A9C2' },
 });

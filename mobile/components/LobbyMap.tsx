@@ -4,6 +4,7 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
 import type { Lobby } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { palette } from '../theme';
 
 type Props = {
     lobbies: Lobby[];
@@ -180,7 +181,7 @@ export default function LobbyMap({ lobbies, onSelect }: Props) {
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#e5e7eb' },
+    container: { flex: 1, backgroundColor: palette.blueSoft },
     web: { flex: 1, backgroundColor: 'transparent' },
     overlay: {
         position: 'absolute',

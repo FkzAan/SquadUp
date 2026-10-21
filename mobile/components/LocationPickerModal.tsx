@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, Vi
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { palette, cardShadow } from '../theme';
 import * as Location from 'expo-location';
 
 export type Coords = { latitude: number; longitude: number };
@@ -222,11 +223,11 @@ export default function LocationPickerModal({ visible, initial, onConfirm, onClo
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
+    container: { flex: 1, backgroundColor: palette.canvas },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 50, paddingHorizontal: 16, paddingBottom: 12 },
-    closeBtn: { padding: 6, borderRadius: 10, backgroundColor: '#f3f4f6' },
+    closeBtn: { padding: 6, borderRadius: 15, backgroundColor: '#fff' },
     title: { fontSize: 20, fontWeight: '800' },
-    mapWrap: { flex: 1, backgroundColor: '#e5e7eb' },
+    mapWrap: { flex: 1, backgroundColor: palette.blueSoft },
     web: { flex: 1, backgroundColor: 'transparent' },
     overlay: {
         position: 'absolute',
@@ -238,10 +239,10 @@ const s = StyleSheet.create({
         justifyContent: 'center',
         padding: 24,
     },
-    overlayText: { marginTop: 10, color: '#374151' },
+    overlayText: { marginTop: 10, color: palette.navy },
     errorText: { color: '#b91c1c', textAlign: 'center', fontWeight: '600' },
-    footer: { padding: 16, paddingBottom: 28, backgroundColor: '#fff' },
-    coords: { textAlign: 'center', color: '#374151', fontWeight: '600', marginBottom: 12 },
+    footer: { padding: 16, paddingBottom: 28, backgroundColor: palette.canvas },
+    coords: { textAlign: 'center', color: palette.navy, fontWeight: '600', marginBottom: 12 },
     row: { flexDirection: 'row', gap: 10 },
     gpsBtn: {
         flexDirection: 'row',
@@ -254,8 +255,8 @@ const s = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 16,
     },
-    gpsText: { color: '#2563eb', fontWeight: '700' },
-    confirmBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+    gpsText: { color: palette.blue, fontWeight: '700' },
+    confirmBtn: { flex: 1, backgroundColor: palette.blue, borderRadius: 12, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
     confirmDisabled: { backgroundColor: '#9ca3af' },
     confirmText: { color: '#fff', fontWeight: '800' },
 });

@@ -1,3 +1,4 @@
+import { colors, surface } from '../theme/pulse';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -19,10 +20,11 @@ export default function AccessState({ title = 'Semak akses akaun…', error, ret
   </View>;
 }
 const s = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 28 },
-  logo: { color: '#2563eb', fontSize: 34, fontWeight: '800', marginBottom: 24 },
-  title: { fontSize: 19, fontWeight: '600', textAlign: 'center', marginBottom: 20, color: '#1f2937' },
-  error: { fontSize: 14, color: '#b45309', lineHeight: 23, textAlign: 'center', marginBottom: 18 },
-  button: { backgroundColor: '#2563eb', borderRadius: 9, padding: 14, marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: '700' }, link: { padding: 16 }, linkText: { color: '#2563eb', fontWeight: '600' }
+  root: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.canvas, padding: 28 },
+  logo: { color: colors.primary, fontSize: 38, fontWeight: '900', letterSpacing: -1.3, marginBottom: 22 },
+  title: { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 21, color: colors.ink, lineHeight: 26 },
+  error: { fontSize: 14, color: colors.danger, lineHeight: 23, textAlign: 'center', marginBottom: 18 },
+  button: { ...surface.primaryButton, paddingHorizontal: 24, marginTop: 12 },
+  buttonText: { color: colors.surface, fontWeight: '900' },
+  link: { padding: 16 }, linkText: { color: colors.primary, fontWeight: '800' },
 });

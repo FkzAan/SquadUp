@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../components/Avatar';
+import { palette, cardShadow } from '../theme';
 import { getCurrentUserId } from '../services/authService';
 import { fetchMessages, sendMessage, subscribeToMessages } from '../services/chatService';
 import type { ChatMessage } from '../types';
@@ -137,49 +138,19 @@ export default function LobbyChatScreen({ lobbyId, title, onBack }: Props) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: 60 },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backBtn: { padding: 6, borderRadius: 10, backgroundColor: '#fff', elevation: 1 },
-  title: { fontSize: 20, fontWeight: '800' },
-  subtitle: { color: '#6b7280', fontSize: 12 },
-  empty: { textAlign: 'center', color: '#6b7280', marginTop: 40, paddingHorizontal: 24 },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, maxWidth: '85%' },
-  rowMine: { alignSelf: 'flex-end' },
-  bubble: { borderRadius: 14, paddingVertical: 8, paddingHorizontal: 12, flexShrink: 1 },
-  bubbleOther: { backgroundColor: '#fff', borderBottomLeftRadius: 4, elevation: 1 },
-  bubbleMine: { backgroundColor: '#2563eb', borderBottomRightRadius: 4 },
-  sender: { fontSize: 12, fontWeight: '700', color: '#2563eb', marginBottom: 2 },
-  content: { fontSize: 15, color: '#111827' },
-  contentMine: { color: '#fff' },
-  time: { fontSize: 10, color: '#9ca3af', marginTop: 4, alignSelf: 'flex-end' },
-  timeMine: { color: '#dbeafe' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    padding: 12,
-    paddingBottom: 24,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  input: {
-    flex: 1,
-    maxHeight: 120,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
-  },
-  sendBtn: { backgroundColor: '#2563eb', borderRadius: 22, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: palette.canvas, paddingTop: 55 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: palette.border },
+  backBtn: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: palette.blueSoft },
+  title: { fontSize: 18, fontWeight: '900', color: palette.navy }, subtitle: { color: palette.muted, fontSize: 12, marginTop: 3 },
+  empty: { textAlign: 'center', color: palette.muted, marginTop: 40, paddingHorizontal: 24 },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, maxWidth: '85%' }, rowMine: { alignSelf: 'flex-end' },
+  bubble: { borderRadius: 19, paddingVertical: 10, paddingHorizontal: 13, flexShrink: 1 },
+  bubbleOther: { backgroundColor: '#fff', borderBottomLeftRadius: 5, ...cardShadow },
+  bubbleMine: { backgroundColor: palette.blue, borderBottomRightRadius: 5 },
+  sender: { fontSize: 12, fontWeight: '800', color: palette.blue, marginBottom: 3 },
+  content: { fontSize: 15, color: palette.navy, lineHeight: 21 }, contentMine: { color: '#fff' },
+  time: { fontSize: 10, color: palette.muted, marginTop: 5, alignSelf: 'flex-end' }, timeMine: { color: '#D5E8FF' },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 18, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: palette.border },
+  input: { flex: 1, minHeight: 45, maxHeight: 115, backgroundColor: '#F0F5FC', borderRadius: 23, paddingHorizontal: 17, paddingVertical: 10, fontSize: 15, color: palette.navy },
+  sendBtn: { backgroundColor: palette.blue, borderRadius: 25, width: 47, height: 47, alignItems: 'center', justifyContent: 'center', ...cardShadow },
 });
