@@ -15,7 +15,7 @@ SDP University Hackathon 2026 · Sime Darby Property · Theme 1: PEOPLE
 | | |
 |---|---|
 | Pitch video | `<PASTE VIDEO LINK>` |
-| Slides | `<PASTE SLIDES LINK>` |
+| Slides | `https://canva.link/hc6f8chkocp4otd` |
 
 ---
 
