@@ -64,7 +64,7 @@ npx expo start --tunnel
 
 | Role | Email | Password |
 |---|---|---|
-| Player (demo) | `<DEMO PLAYER EMAIL>` | `<PASSWORD>` |
+| Player (demo) | `<YOUR EMAIL>` | `<PASSWORD>` |
 | Admin / township developer | `<squadupadmin@gmail.com>` | `<admin123>` |
 
 Admin access is decided by the database, not by the email address. The admin account opens the **Admin Dashboard** automatically after sign-in. All other accounts open the player app.
@@ -191,6 +191,6 @@ tests/                   Automated tests
 
 ## Team
 
-`<TEAM NAME>`: `<MEMBER 1>`, `<MEMBER 2>`, `<MEMBER 3>`, `<MEMBER 4>`
+`<A.EYE>`: `<SHAHMIL>`, `<FARHAN>`, `<FARIZ>`, `<FAIQ>`
 
 Licensed under the terms in [LICENSE](LICENSE).
