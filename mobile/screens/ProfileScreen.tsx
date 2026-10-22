@@ -1,268 +1,123 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, ImageBackground, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Avatar from '../components/Avatar';
-import { changePassword, fetchMyProfile, removeAvatar, updateName, uploadAvatar } from '../services/profileService';
-import type { Profile } from '../types';
 import { useLanguage } from '../context/LanguageContext';
-import LanguageSelector from '../components/LanguageSelector';
-import { palette, cardShadow } from '../theme';
+import { getCurrentUserId } from '../services/authService';
+import { fetchSportsProfile, type SportsProfile } from '../services/sportsIdentityService';
+import { ACHIEVEMENTS, achievementCount, activityStats } from '../utils/sportsAchievements';
+import { sportIcon } from '../components/ui/SportVisual';
+import { palette } from '../theme';
 
-export default function ProfileScreen({ onBack }: { onBack: () => void }) {
-  const { t } = useLanguage();
-  const [profile, setProfile] = useState<Profile | null>(null);
+type Props = {
+  onBack: () => void;
+  onSettings?: () => void;
+  onPreferences?: () => void;
+  userId?: string;
+};
+
+export default function ProfileScreen({ onBack, onSettings, onPreferences, userId }: Props) {
+  const { language } = useLanguage();
+  const ms = language === 'ms';
+  const insets = useSafeAreaInsets();
+  const [profile, setProfile] = useState<SportsProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isMine, setIsMine] = useState(false);
 
-  const [name, setName] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const load = useCallback(async (spinner = true) => {
+    if (spinner) setLoading(true);
+    const me = await getCurrentUserId();
+    const target = userId ?? me;
+    setIsMine(Boolean(me && target === me));
+    if (!target) { setError('Sign in required'); setLoading(false); return; }
+    const result = await fetchSportsProfile(target);
+    setProfile(result.data);
+    setError(result.error);
+    setLoading(false); setRefreshing(false);
+  }, [userId]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  const stats = activityStats(profile);
+  const achievements = ACHIEVEMENTS.map(a => ({ ...a, progress: achievementCount(profile, a.id), unlocked: achievementCount(profile, a.id) >= a.threshold }));
+  const unlocked = achievements.filter(a => a.unlocked).length;
+  const rank = stats.level >= 10 ? 'Elite' : stats.level >= 5 ? 'Gold' : stats.level >= 3 ? 'Silver' : 'Rising';
+  const title = ms ? 'Profil Sukan' : 'Sports Profile';
+  const noData = !profile || Boolean(error);
 
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [savingPw, setSavingPw] = useState(false);
-
-  const load = useCallback(async () => {
-    const p = await fetchMyProfile();
-    setProfile(p);
-    if (p) setName(p.name);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function pickImage() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    if (!asset.base64) {
-      Alert.alert(t('error'), t('cannotReadImage'));
-      return;
-    }
-
-    setUploading(true);
-    const err = await uploadAvatar(asset.base64, asset.mimeType ?? 'image/jpeg');
-    setUploading(false);
-    if (err) Alert.alert(t('uploadFailed'), err);
-    else load();
-  }
-
-  function confirmRemove() {
-    Alert.alert(t('removeImageTitle'), t('removeImageMessage'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('remove'),
-        style: 'destructive',
-        onPress: async () => {
-          setUploading(true);
-          const err = await removeAvatar();
-          setUploading(false);
-          if (err) Alert.alert(t('error'), err);
-          else load();
-        },
-      },
-    ]);
-  }
-
-  async function saveName() {
-    const trimmed = name.trim();
-    if (trimmed.length < 2) {
-      Alert.alert(t('shortNameTitle'), t('shortNameMessage'));
-      return;
-    }
-    setSavingName(true);
-    const err = await updateName(trimmed);
-    setSavingName(false);
-    if (err) Alert.alert(t('error'), err);
-    else {
-      Alert.alert(t('saved'), t('nameUpdated'));
-      load();
-    }
-  }
-
-  async function savePassword() {
-    if (!currentPw || !newPw || !confirmPw) {
-      Alert.alert(t('complete'), t('fillPasswords'));
-      return;
-    }
-    if (newPw.length < 6) {
-      Alert.alert(t('shortPasswordTitle'), t('shortPasswordMessage'));
-      return;
-    }
-    if (newPw !== confirmPw) {
-      Alert.alert(t('passwordMismatchTitle'), t('passwordMismatch'));
-      return;
-    }
-    if (newPw === currentPw) {
-      Alert.alert(t('samePasswordTitle'), t('samePasswordMessage'));
-      return;
-    }
-    setSavingPw(true);
-    const err = await changePassword(currentPw, newPw);
-    setSavingPw(false);
-    if (err) Alert.alert(t('failed'), err);
-    else {
-      Alert.alert(t('success'), t('passwordChanged'));
-      setCurrentPw('');
-      setNewPw('');
-      setConfirmPw('');
-    }
-  }
-
-  const Header = (
-    <View style={s.topRow}>
-      <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-        <Ionicons name="arrow-back" size={24} color="#111827" />
-      </TouchableOpacity>
-      <Text style={s.title}>{t('myProfile')}</Text>
-    </View>
-  );
-
-  if (loading || !profile) {
-    return (
-      <View style={s.container}>
-        {Header}
-        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
-      </View>
-    );
-  }
-
-  const nameChanged = name.trim() !== profile.name;
-
-  return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        style={s.container}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {Header}
-
-        <View style={s.avatarWrap}>
-          <View style={s.profileAccent} />
-          <TouchableOpacity onPress={pickImage} activeOpacity={0.8} disabled={uploading}>
-            <Avatar uri={profile.avatar_url} name={profile.name} size={110} />
-            <View style={s.camBadge}>
-              {uploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="camera" size={18} color="#fff" />
-              )}
-            </View>
-          </TouchableOpacity>
-          <Text style={s.email}>{profile.email}</Text>
-          <View style={s.avatarActions}>
-            <TouchableOpacity onPress={pickImage} disabled={uploading}>
-              <Text style={s.link}>{t('changeImage')}</Text>
-            </TouchableOpacity>
-            {profile.avatar_url && (
-              <TouchableOpacity onPress={confirmRemove} disabled={uploading}>
-                <Text style={s.linkDanger}>{t('removeImage')}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+  if (loading) return <View style={s.loader}><ActivityIndicator size="large" color={palette.blue}/></View>;
+  return <View style={s.root}>
+    <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(false); }}/>} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 34 }} showsVerticalScrollIndicator={false}>
+      <ImageBackground source={require('../assets/sports/badminton.jpg')} style={[s.hero, { paddingTop: Math.max(50, insets.top + 10) }]} imageStyle={s.heroImage}>
+        <View style={s.heroOverlay}/>
+        <View style={s.heroToolbar}>
+          <TouchableOpacity onPress={onBack} style={s.circleBtn} accessibilityLabel="Back"><Ionicons name="arrow-back" size={21} color="#FFFFFF"/></TouchableOpacity>
+          <Text style={s.heroHeading}>{title}</Text>
+          {isMine && onSettings ? <TouchableOpacity onPress={onSettings} style={s.settingsBtn} accessibilityLabel="Settings"><Ionicons name="settings-outline" size={21} color={palette.blue}/></TouchableOpacity> : <View style={s.circleSpacer}/>}
         </View>
+        <View style={s.identity}>
+          <View style={s.avatarRing}><Avatar uri={profile?.avatar_url} name={profile?.name ?? 'Player'} size={92}/></View>
+          <Text numberOfLines={1} style={s.displayName}>{profile?.name ?? (ms ? 'Pemain SquadUp' : 'SquadUp Player')}</Text>
+          <Text style={s.tagline}>{ms ? 'Game hebat. Kawan terbaik.' : 'Good games. Better people.'}</Text>
+          {!noData && !profile.private && <View style={s.heroPills}>
+            <View style={s.heroPill}><Ionicons name="ribbon" color="#FFD66E" size={17}/><Text style={s.heroPillText}>{stats.joined >= 5 ? (ms ? 'Ahli Aktif' : 'Squad Regular') : (ms ? 'Pengembara Sukan' : 'Sports Explorer')}</Text></View>
+            <View style={s.heroPill}><Ionicons name="flash" color="#C5A4FF" size={16}/><Text style={s.heroPillText}>Lv. {stats.level}</Text></View>
+          </View>}
+        </View>
+        {!profile?.private && !noData && <View style={s.statsBar}>
+          <View style={s.stat}><Ionicons name="people" color="#8AD5FF" size={19}/><Text style={s.statValue}>{profile.joined ?? 0}</Text><Text style={s.statLabel}>{ms ? 'Disertai' : 'Joined'}</Text></View>
+          <View style={s.statsDivider}/>
+          <View style={s.stat}><Ionicons name="checkmark-circle" color="#79F0C9" size={19}/><Text style={s.statValue}>{stats.hosted}</Text><Text style={s.statLabel}>{ms ? 'Dihost' : 'Hosted'}</Text></View>
+          <View style={s.statsDivider}/>
+          <View style={s.stat}><Ionicons name="stats-chart" color="#FFE28C" size={19}/><Text style={s.statValue}>{stats.sports}</Text><Text style={s.statLabel}>{ms ? 'Jenis Sukan' : 'Sport Types'}</Text></View>
+        </View>}
+      </ImageBackground>
 
+      {isMine && !noData && <View style={s.localNotice}><Ionicons name="phone-portrait-outline" size={16} color="#365DA3"/><Text style={s.localNoticeText}>{ms ? 'Minat disimpan di telefon ini. Statistik Join/Host daripada rekod lobby sedia ada; bukan rekod kehadiran sebenar.' : 'Interests are stored on this device. Join/Host stats use existing lobby records, not verified attendance.'}</Text></View>}
+      {error && <View style={s.warning}><Ionicons name="alert-circle-outline" color="#B45309" size={19}/><Text style={s.warningText}>{error}</Text></View>}
+      {profile?.private && !isMine ? <View style={s.privatePanel}><Ionicons name="person-circle-outline" color={palette.blue} size={32}/><Text style={s.sectionTitle}>{ms ? 'Profil Pemain' : 'Player Profile'}</Text><Text style={s.muted}>{ms ? 'Nama dan avatar adalah maklumat yang sudah dipaparkan kepada ahli lobby. Minat, XP dan pencapaian pemain lain tidak dikongsi tanpa database privacy controls.' : 'Name and avatar are already shown to lobby members. Other players’ interests, XP and achievements are not shared without server-side privacy controls.'}</Text></View> : !noData && <>
         <View style={s.card}>
-          <Text style={s.cardTitle}>{t('name')}</Text>
-          <TextInput
-            style={s.input}
-            value={name}
-            onChangeText={setName}
-            placeholder={t('nickname')}
-            maxLength={40}
-          />
-          <TouchableOpacity
-            style={[s.primaryBtn, (!nameChanged || savingName) && s.btnDisabled]}
-            onPress={saveName}
-            disabled={!nameChanged || savingName}
-            activeOpacity={0.8}
-          >
-            <Text style={s.primaryText}>{savingName ? t('saving') : t('saveName')}</Text>
-          </TouchableOpacity>
+          <View style={s.rowBetween}><Text style={s.sectionTitle}>{ms ? 'Sukan Kegemaran' : 'Favourite Sports'}</Text>{isMine && onPreferences && <TouchableOpacity onPress={onPreferences} accessibilityRole="button"><Text style={s.action}>{ms ? 'Ubah' : 'Edit'}  <Ionicons name="create-outline" size={14} color={palette.blue}/></Text></TouchableOpacity>}</View>
+          {(profile?.favourite_sports ?? []).length > 0 ? <View style={s.sportWrap}>{profile!.favourite_sports!.map((sport,i) => <View key={`${sport}-${i}`} style={[s.sportChip, { backgroundColor: sportColors[i%4].light, borderColor: sportColors[i%4].border }]}><Ionicons name={sportIcon(sport)} size={19} color={sportColors[i%4].dark}/><Text style={[s.sportText, { color: sportColors[i%4].dark }]}>{sport}</Text></View>)}</View> : <Text style={s.muted}>{ms ? 'Belum pilih sukan. Tambah melalui Edit.' : 'No favourite sports yet. Tap Edit to add some.'}</Text>}
         </View>
-
         <View style={s.card}>
-          <Text style={s.cardTitle}>{t('languagePreferences')}</Text>
-          <Text style={s.languageHint}>{t('chooseLanguage')}</Text>
-          <LanguageSelector expanded />
+          <Text style={s.sectionTitle}>{ms ? 'Gaya Permainan' : 'Play Style'}</Text>
+          <View style={s.playStyle}><View style={s.styleTile}><Ionicons name="game-controller" size={21} color="#7255DA"/><Text style={s.styleTitle}>{profile?.play_style ?? 'Friendly'}</Text><Text style={s.styleDesc}>{ms ? 'Pilihan anda' : 'Preferred style'}</Text></View><View style={s.styleTile}><Ionicons name="football" size={21} color="#287AF0"/><Text style={s.styleTitle}>{stats.sports}</Text><Text style={s.styleDesc}>{ms ? 'Jenis sukan disertai' : 'Sports joined'}</Text></View><View style={s.styleTile}><Ionicons name="trophy" size={21} color="#DF9B20"/><Text style={s.styleTitle}>{stats.hosted}</Text><Text style={s.styleDesc}>{ms ? 'Squad dihost' : 'Squads hosted'}</Text></View></View>
         </View>
-
+        <View style={[s.rankCard, { backgroundColor: '#342718' }]}>
+          <View style={s.rankIcon}><Ionicons name="shield" size={42} color="#FFCF5B"/><Ionicons name="star" size={16} color="#FFFFFF" style={s.rankStar}/></View>
+          <View style={s.rankBody}><Text style={s.rankOverline}>{ms ? 'Level Penyertaan' : 'Participation Level'}</Text><Text style={s.rankName}>{rank} Player</Text><View style={s.progressTrack}><View style={[s.progressFill, { width: `${Math.round(stats.levelProgress / 500 * 100)}%` as `${number}%` }]}/></View><Text style={s.rankXP}>{stats.levelProgress} / 500 XP · {stats.xp} XP total</Text></View>
+        </View>
+        <View style={s.sectionStandalone}>
+          <View style={s.rowBetween}><Text style={s.sectionTitle}>{ms ? 'Pencapaian' : 'Achievements'}</Text><Text style={s.action}>{unlocked}/{achievements.length} unlocked</Text></View>
+          <View style={s.badgeGrid}>{achievements.map(a => <View key={a.id} style={s.badgeItem}>
+            <View style={[s.badgeOuter, { backgroundColor: a.unlocked ? a.pale : '#E9EDF4', borderColor: a.unlocked ? a.tone : '#BCC7D6' }]}>
+              <View style={[s.badgeInner, { backgroundColor: a.unlocked ? a.tone : '#A4AEC1' }]}><Ionicons name={a.icon} color="#FFFFFF" size={27}/></View>
+              {a.unlocked && <View style={s.badgeShine}><Ionicons name="checkmark" color="#FFFFFF" size={11}/></View>}
+            </View><Text style={s.badgeName} numberOfLines={2}>{ms ? a.ms : a.name}</Text><Text style={s.badgeDesc} numberOfLines={2}>{ms ? a.descMs : a.description}</Text><Text style={s.badgeProgress}>{Math.min(a.progress,a.threshold)}/{a.threshold}</Text>
+          </View>)}</View>
+        </View>
         <View style={s.card}>
-          <Text style={s.cardTitle}>{t('changePassword')}</Text>
-          <TextInput
-            style={s.input}
-            value={currentPw}
-            onChangeText={setCurrentPw}
-            placeholder={t('currentPassword')}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={s.input}
-            value={newPw}
-            onChangeText={setNewPw}
-            placeholder={t('newPasswordHint')}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={s.input}
-            value={confirmPw}
-            onChangeText={setConfirmPw}
-            placeholder={t('confirmPassword')}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={[s.primaryBtn, savingPw && s.btnDisabled]}
-            onPress={savePassword}
-            disabled={savingPw}
-            activeOpacity={0.8}
-          >
-            <Text style={s.primaryText}>{savingPw ? t('changing') : t('changePassword')}</Text>
-          </TouchableOpacity>
+          <View style={s.rowBetween}><Text style={s.sectionTitle}>{ms ? 'Aktiviti Terkini' : 'Recent Activity'}</Text><Ionicons name="time-outline" color={palette.blue} size={19}/></View>
+          {(profile?.recent ?? []).length ? profile!.recent!.map(a => <View key={a.id} style={s.activityRow}><View style={s.activityIcon}><Ionicons name={sportIcon(a.activity_type)} size={20} color={palette.blue}/></View><View style={{ flex: 1 }}><Text style={s.activityName} numberOfLines={1}>{a.activity_type}</Text><Text style={s.activityMeta} numberOfLines={1}>{a.location_name}</Text><Text style={s.activityMeta}>{new Date(a.starts_at).toLocaleDateString()}</Text></View><View style={[s.activityStatus, { backgroundColor: a.status === 'hosted' ? '#DCF8ED' : '#F2F4F8' }]}><Text style={{ color: a.status === 'hosted' ? '#078455' : '#53647A', fontWeight: '700', fontSize: 10 }}>{a.status === 'hosted' ? (ms ? 'Host' : 'Hosted') : (ms ? 'Disertai' : 'Joined')}</Text></View></View>) : <Text style={s.muted}>{ms ? 'Belum ada squad yang disertai.' : 'No joined squads yet.'}</Text>}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+      </>}
+    </ScrollView>
+  </View>;
 }
-
+const sportColors = [{light:'#E7F2FF',border:'#BDD7FF',dark:'#155BBB'},{light:'#FFF1DB',border:'#F7CE8A',dark:'#9E5A0B'},{light:'#DDF9EC',border:'#A6E8C9',dark:'#08764E'},{light:'#EEE6FF',border:'#CFB4FF',dark:'#6135B5'}];
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.canvas, paddingTop: 56 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginBottom: 14 },
-  backBtn: { width: 43, height: 43, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 23, fontWeight: '900', color: palette.navy },
-  avatarWrap: { alignItems: 'center', paddingTop: 27, paddingBottom: 24, marginHorizontal: 16, borderRadius: 23, overflow: 'hidden', backgroundColor: '#DAEAFF', marginBottom: 4 },
-  profileAccent: { position: 'absolute', width: 300, height: 300, backgroundColor: '#BBD9FF', borderRadius: 150, top: -220, right: -110 },
-  camBadge: { position: 'absolute', right: 0, bottom: 0, width: 35, height: 35, borderRadius: 18, backgroundColor: palette.blue, borderWidth: 3, borderColor: '#DAEAFF', alignItems: 'center', justifyContent: 'center' },
-  email: { color: '#526D91', marginTop: 12, fontWeight: '600' },
-  avatarActions: { flexDirection: 'row', gap: 19, marginTop: 9 }, link: { color: palette.blue, fontWeight: '800' }, linkDanger: { color: palette.danger, fontWeight: '800' },
-  card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 13, padding: 17, borderRadius: 20, borderWidth: 1, borderColor: palette.border, ...cardShadow },
-  languageHint: { color: palette.muted, marginBottom: 12, fontSize: 13 },
-  cardTitle: { fontWeight: '900', color: palette.navy, marginBottom: 12, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: palette.border, borderRadius: 13, padding: 13, marginBottom: 11, backgroundColor: '#FBFDFF', color: palette.navy },
-  primaryBtn: { backgroundColor: palette.blue, borderRadius: 13, padding: 14, alignItems: 'center', marginTop: 3 },
-  primaryText: { color: '#fff', fontWeight: '900' }, btnDisabled: { backgroundColor: '#98A9C2' },
+  localNotice:{flexDirection:'row',alignItems:'center',gap:9,marginHorizontal:15,marginTop:13,padding:12,borderRadius:13,backgroundColor:'#E9F1FF'},localNoticeText:{flex:1,fontSize:11,lineHeight:17,color:'#365DA3'},
+  root:{flex:1,backgroundColor:'#F2F6FE'},loader:{flex:1,justifyContent:'center',backgroundColor:'#F2F6FE'},
+  hero:{paddingHorizontal:18,paddingBottom:18,minHeight:355,justifyContent:'flex-start'},heroImage:{resizeMode:'cover'},heroOverlay:{...StyleSheet.absoluteFill,backgroundColor:'rgba(9,24,53,0.77)'},
+  heroToolbar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:15},circleBtn:{backgroundColor:'rgba(3,14,33,0.53)',width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center'},settingsBtn:{backgroundColor:'#FFFFFF',width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#E8F0FF',shadowColor:'#000',shadowOpacity:0.12,shadowRadius:6,elevation:3},circleSpacer:{width:44},heroHeading:{fontSize:22,fontWeight:'900',color:'#FFFFFF'},
+  identity:{alignItems:'center',gap:7,marginBottom:17},avatarRing:{padding:4,borderWidth:2,borderColor:'#D3E4FF',borderRadius:60,backgroundColor:'rgba(255,255,255,0.12)'},displayName:{color:'#FFFFFF',fontSize:25,fontWeight:'900',maxWidth:'90%'},tagline:{color:'#CCDDF8',fontSize:12},heroPills:{flexDirection:'row',gap:8,marginTop:4},heroPill:{flexDirection:'row',alignItems:'center',gap:5,backgroundColor:'rgba(66,89,160,0.55)',paddingHorizontal:12,paddingVertical:7,borderRadius:20},heroPillText:{color:'#FFFFFF',fontWeight:'700',fontSize:11},
+  statsBar:{backgroundColor:'rgba(219,235,255,0.14)',borderColor:'rgba(230,244,255,0.28)',borderWidth:1,borderRadius:20,paddingVertical:14,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},stat:{alignItems:'center',gap:4,flex:1},statValue:{color:'#FFFFFF',fontSize:20,fontWeight:'900'},statLabel:{color:'#D7E5F9',fontSize:11},statsDivider:{height:50,width:1,backgroundColor:'rgba(225,237,255,0.25)'},
+  card:{backgroundColor:'#FFFFFF',borderRadius:22,padding:18,marginHorizontal:15,marginTop:15,borderWidth:1,borderColor:'#E5ECF8',shadowColor:'#1C3567',shadowOpacity:0.05,shadowRadius:12,elevation:2},rowBetween:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:13},sectionTitle:{fontSize:17,fontWeight:'900',color:'#102448',flexShrink:1},action:{color:palette.blue,fontWeight:'800',fontSize:12},sportWrap:{flexDirection:'row',flexWrap:'wrap',gap:9},sportChip:{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingVertical:11,borderRadius:13,borderWidth:1},sportText:{fontSize:12,fontWeight:'800'},muted:{color:'#7888A0',fontSize:13,lineHeight:20},
+  playStyle:{flexDirection:'row',gap:9,marginTop:12},styleTile:{flex:1,minWidth:0,minHeight:114,backgroundColor:'#F1F5FF',paddingVertical:15,paddingHorizontal:8,alignItems:'center',justifyContent:'center',borderRadius:16,gap:6,borderWidth:1,borderColor:'#E6EDFB'},styleTitle:{color:'#15274B',fontWeight:'900',fontSize:12,textAlign:'center',lineHeight:17},styleDesc:{color:'#7083A0',fontSize:10,textAlign:'center',lineHeight:14},
+  rankCard:{marginHorizontal:15,marginTop:16,borderRadius:23,padding:18,flexDirection:'row',alignItems:'center',gap:15,borderWidth:1,borderColor:'#D8A743',shadowColor:'#986D21',shadowOpacity:0.18,shadowRadius:11,elevation:4},rankIcon:{width:65,height:65,backgroundColor:'#604923',borderRadius:20,justifyContent:'center',alignItems:'center'},rankStar:{position:'absolute',top:26},rankBody:{flex:1},rankOverline:{color:'#F3E0BD',fontSize:11},rankName:{fontSize:21,fontWeight:'900',color:'#FFE083',marginBottom:9},progressTrack:{height:9,backgroundColor:'#77654A',borderRadius:10,overflow:'hidden'},progressFill:{height:'100%',backgroundColor:'#FFD85C',borderRadius:10},rankXP:{fontSize:10,color:'#F8E8CE',marginTop:6},
+  sectionStandalone:{marginHorizontal:16,marginTop:20},badgeGrid:{flexDirection:'row',justifyContent:'space-between',marginTop:10},badgeItem:{width:'24%',alignItems:'center',gap:5},badgeOuter:{height:66,width:66,borderWidth:2,borderRadius:20,alignItems:'center',justifyContent:'center',transform:[{rotate:'-5deg'}]},badgeInner:{height:49,width:49,borderRadius:14,alignItems:'center',justifyContent:'center',shadowColor:'#0F172A',shadowOpacity:0.25,shadowRadius:5,elevation:4},badgeShine:{position:'absolute',top:-5,right:-5,backgroundColor:'#16A34A',borderRadius:12,width:20,height:20,justifyContent:'center',alignItems:'center'},badgeName:{fontWeight:'900',color:'#253A5B',fontSize:10,textAlign:'center',minHeight:27},badgeDesc:{fontSize:9,color:'#7E90AA',textAlign:'center',minHeight:26},badgeProgress:{fontSize:10,color:'#52719C',fontWeight:'800'},
+  activityRow:{flexDirection:'row',alignItems:'center',gap:10,paddingVertical:11,borderTopWidth:1,borderTopColor:'#EDF1F7'},activityIcon:{height:50,width:50,borderRadius:14,backgroundColor:'#E9F2FF',alignItems:'center',justifyContent:'center'},activityName:{fontWeight:'900',color:'#1A3052'},activityMeta:{fontSize:11,color:'#71819A',marginTop:2},activityStatus:{paddingHorizontal:9,paddingVertical:7,borderRadius:10},warning:{flexDirection:'row',gap:10,margin:16,padding:15,backgroundColor:'#FEF3C7',borderRadius:15},warningText:{flex:1,color:'#92400E',fontSize:12},privatePanel:{backgroundColor:'#FFFFFF',padding:36,margin:16,borderRadius:22,alignItems:'center',gap:14},
 });
