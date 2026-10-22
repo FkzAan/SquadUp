@@ -34,7 +34,7 @@ You do not need a Supabase account, API key or `.env` file. The app connects to 
 
 ```bash
 git clone https://github.com/Meloppa/SquadUp.git
-cd SquadUp
+cd squadup-app
 npm install
 npx expo start -c
 ```
